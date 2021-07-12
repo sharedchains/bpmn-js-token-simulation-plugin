@@ -32,7 +32,18 @@ export default class TokenPropertiesProvider {
     const translate = this._translate;
     const dataTokenSimulation = this._dataTokenSimulation;
 
+    /*
+     * TODO : Gateway sequenceflow order for evaluation
+     *
+     * If set default and more than 2 ways, with a 'cross-condition' evaluation, choose the first following flow-id order
+     * i.e. flow-1 === default
+     * [ flow-2, flow-3, flow-1] (like a switch-case instruction)
+     *
+     */
+
     return function(entries) {
+
+      // TODO : Data feature works only if our code editor is installed
       const tokenTab = {
         id: 'token',
         label: 'Token',

@@ -11,7 +11,7 @@ export default class Data {
       this._data = [];
     });
 
-    // TODO: Sicuramente risponderà a eventi di SCOPE per ritornare i dati
+    // TODO: Will definitely answer to SCOPE events to return some data
     eventBus.on(SCOPE_CREATE_EVENT, event => {
       const {
         scope
@@ -73,7 +73,7 @@ export default class Data {
       map = new Map();
       this._data.push({ element, data: map });
     }
-    map.set('');
+    map.set('', {});
   }
 
   getDataElements(element) {
@@ -88,7 +88,17 @@ export default class Data {
     let map = dataObject[0];
     let keyMap = Array.from(map.keys())[index];
     map.delete(keyMap);
-    map.set(value['name'], value['value']);
+    map.set(value['name'], value);
+  }
+
+  removeDataElement(element, index) {
+    let dataObject = this.getDataElements(element);
+    if (dataObject.length === 0) {
+      return;
+    }
+    let map = dataObject[0];
+    let keyMap = Array.from(map.keys())[index];
+    map.delete(keyMap);
   }
 
 }
