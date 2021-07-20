@@ -84,28 +84,20 @@ class Data {
       this._data = [];
     });
 
-    // TODO: Will definitely answer to SCOPE events to return some data
     eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SCOPE_CREATE_EVENT, event => {
       const {
         scope
       } = event;
 
       const {
-        element,
-        initiator
+        element
       } = scope;
-
-      if (initiator && initiator.type === 'bpmn:MessageFlow') {
-        // TODO : We need to pass the scope from the "source" process to the "target" process
-      }
 
       let dataObject = this.getDataElements(getProcessOrParticipantElement(element));
       scope.data = undefined;
       if (dataObject.length > 0) {
         scope.data = dataObject[0];
       }
-
-      // TODO: DATA EVALUATION?
 
     });
 
@@ -203,6 +195,27 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ }),
 
+/***/ "./client/events/EventHelper.js":
+/*!**************************************!*\
+  !*** ./client/events/EventHelper.js ***!
+  \**************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "DATA_GET_EVENT": () => (/* binding */ DATA_GET_EVENT),
+/* harmony export */   "DATA_NEW_ASSIGN_EVENT": () => (/* binding */ DATA_NEW_ASSIGN_EVENT),
+/* harmony export */   "CODE_EDITOR_PLUGIN_PRESENT": () => (/* binding */ CODE_EDITOR_PLUGIN_PRESENT)
+/* harmony export */ });
+const DATA_NEW_ASSIGN_EVENT = 'tokenSimulation.data.newAssign';
+const DATA_GET_EVENT = 'tokenSimulation.data.get';
+const CODE_EDITOR_PLUGIN_PRESENT = 'codeEditor.init';
+
+
+
+/***/ }),
+
 /***/ "./client/propertiesProvider/TokenPropertiesProvider.js":
 /*!**************************************************************!*\
   !*** ./client/propertiesProvider/TokenPropertiesProvider.js ***!
@@ -215,6 +228,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "default": () => (/* binding */ TokenPropertiesProvider)
 /* harmony export */ });
 /* harmony import */ var _parts_DataProps__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./parts/DataProps */ "./client/propertiesProvider/parts/DataProps.js");
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../events/EventHelper */ "./client/events/EventHelper.js");
+
 
 
 const LOW_PRIORITY = 500;
@@ -238,41 +253,41 @@ class TokenPropertiesProvider {
   // Register our properties provider.
   // Use a lower priority to ensure it is loaded after the basic BPMN properties.
 
-  constructor(propertiesPanel, translate, dataTokenSimulation) {
+  constructor(eventBus, propertiesPanel, translate, dataTokenSimulation) {
+    this._eventBus = eventBus;
     this._translate = translate;
     this._dataTokenSimulation = dataTokenSimulation;
+    this.active = false;
 
     propertiesPanel.registerProvider(LOW_PRIORITY, this);
+
+    eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.CODE_EDITOR_PLUGIN_PRESENT, LOW_PRIORITY, () => {
+      this.active = true;
+    });
   }
 
   getTabs(element) {
     const translate = this._translate;
     const dataTokenSimulation = this._dataTokenSimulation;
-
-    /*
-     * TODO : Gateway sequenceflow order for evaluation
-     *
-     * If set default and more than 2 ways, with a 'cross-condition' evaluation, choose the first following flow-id order
-     * i.e. flow-1 === default
-     * [ flow-2, flow-3, flow-1] (like a switch-case instruction)
-     *
-     */
+    const active = this.active;
 
     return function(entries) {
 
-      // TODO : Data feature works only if our code editor is installed
-      const tokenTab = {
-        id: 'token',
-        label: 'Token',
-        groups: createTokenTabGroup(translate, element, dataTokenSimulation)
-      };
-      entries.push(tokenTab);
+      // Data feature works only if our code editor is installed
+      if (active) {
+        const tokenTab = {
+          id: 'token',
+          label: 'Token',
+          groups: createTokenTabGroup(translate, element, dataTokenSimulation)
+        };
+        entries.push(tokenTab);
+      }
       return entries;
     };
   };
 }
 
-TokenPropertiesProvider.$inject = ['propertiesPanel', 'translate', 'dataTokenSimulation'];
+TokenPropertiesProvider.$inject = ['eventBus', 'propertiesPanel', 'translate', 'dataTokenSimulation'];
 
 /***/ }),
 
@@ -288,16 +303,19 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
 /* harmony import */ var _data__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../data */ "./client/data/index.js");
-/* harmony import */ var _TokenPropertiesProvider__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./TokenPropertiesProvider */ "./client/propertiesProvider/TokenPropertiesProvider.js");
+/* harmony import */ var _simulation__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../simulation */ "./client/simulation/index.js");
+/* harmony import */ var _TokenPropertiesProvider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./TokenPropertiesProvider */ "./client/propertiesProvider/TokenPropertiesProvider.js");
+
 
 
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
   __depends__: [
-    _data__WEBPACK_IMPORTED_MODULE_0__.default
+    _data__WEBPACK_IMPORTED_MODULE_0__.default,
+    _simulation__WEBPACK_IMPORTED_MODULE_1__.default
   ],
   __init__: ['tokenPropertiesProvider'],
-  tokenPropertiesProvider: ['type', _TokenPropertiesProvider__WEBPACK_IMPORTED_MODULE_1__.default]
+  tokenPropertiesProvider: ['type', _TokenPropertiesProvider__WEBPACK_IMPORTED_MODULE_2__.default]
 });
 
 /***/ }),
@@ -455,6 +473,84 @@ function createInputTemplate(properties, canRemove) {
   }
 }
 
+
+/***/ }),
+
+/***/ "./client/simulation/DataBehaviour.js":
+/*!********************************************!*\
+  !*** ./client/simulation/DataBehaviour.js ***!
+  \********************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ DataBehavior)
+/* harmony export */ });
+function DataBehavior(simulator, dataTokenSimulation) {
+  this._simulator = simulator;
+  this._data = dataTokenSimulation;
+
+  // TODO: Will definitely answer to SCOPE events to return some data
+
+  /*
+   * TODO : Gateway sequenceflow order for evaluation
+   *
+   * If set default and more than 2 ways, with a 'cross-condition' evaluation, choose the first following flow-id order
+   * i.e. flow-1 === default
+   * [ flow-2, flow-3, flow-1] (like a switch-case instruction)
+   *
+   */
+
+  simulator.on('trace', (event) => {
+    const {
+      scope,
+      action,
+      element
+    } = event;
+
+    if (scope) {
+      const {
+        initiator,
+        data
+      } = scope;
+
+      if (initiator && initiator.type === 'bpmn:MessageFlow') {
+        // TODO : We need to pass the scope from the "source" process to the "target" process
+      }
+
+      console.log(`${action}ing element ${element.id} with data ${JSON.stringify(data, null, 2)}`);
+      // TODO: DATA EVALUATION?
+    }
+
+    console.log(`${action} for element ${element.id}`);
+
+  });
+
+}
+
+DataBehavior.$inject = ['simulator', 'dataTokenSimulation'];
+
+/***/ }),
+
+/***/ "./client/simulation/index.js":
+/*!************************************!*\
+  !*** ./client/simulation/index.js ***!
+  \************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _DataBehaviour__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./DataBehaviour */ "./client/simulation/DataBehaviour.js");
+
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  __init__: ['dataBehaviour'],
+  dataBehaviour: ['type', _DataBehaviour__WEBPACK_IMPORTED_MODULE_0__.default]
+});
 
 /***/ }),
 

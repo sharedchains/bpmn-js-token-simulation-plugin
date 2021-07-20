@@ -11,28 +11,20 @@ export default class Data {
       this._data = [];
     });
 
-    // TODO: Will definitely answer to SCOPE events to return some data
     eventBus.on(SCOPE_CREATE_EVENT, event => {
       const {
         scope
       } = event;
 
       const {
-        element,
-        initiator
+        element
       } = scope;
-
-      if (initiator && initiator.type === 'bpmn:MessageFlow') {
-        // TODO : We need to pass the scope from the "source" process to the "target" process
-      }
 
       let dataObject = this.getDataElements(getProcessOrParticipantElement(element));
       scope.data = undefined;
       if (dataObject.length > 0) {
         scope.data = dataObject[0];
       }
-
-      // TODO: DATA EVALUATION?
 
     });
 
