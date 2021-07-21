@@ -1,5 +1,5 @@
 import dataProps from './parts/DataProps';
-import { CODE_EDITOR_PLUGIN_PRESENT } from '../events/EventHelper';
+import { CODE_EDITOR_PLUGIN_PRESENT_EVENT } from '../events/EventHelper';
 
 const LOW_PRIORITY = 500;
 
@@ -30,7 +30,7 @@ export default class TokenPropertiesProvider {
 
     propertiesPanel.registerProvider(LOW_PRIORITY, this);
 
-    eventBus.on(CODE_EDITOR_PLUGIN_PRESENT, LOW_PRIORITY, () => {
+    eventBus.on(CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, () => {
       this.active = true;
     });
   }
@@ -45,8 +45,8 @@ export default class TokenPropertiesProvider {
       // Data feature works only if our code editor is installed
       if (active) {
         const tokenTab = {
-          id: 'token',
-          label: 'Token',
+          id: 'data-token-simulation-tab',
+          label: 'Data simulation',
           groups: createTokenTabGroup(translate, element, dataTokenSimulation)
         };
         entries.push(tokenTab);
