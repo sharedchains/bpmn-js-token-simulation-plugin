@@ -12,74 +12,113 @@ export default function ExclusiveGatewayBehavior(simulator, eventBus, exclusiveG
 
   this.runScript = async (code, data, outgoing, ctx) => {
 
-    const fireScriptRun = (c, d) => {
-      return Promise.resolve(this._eventBus.fire(RUN_CODE_EVALUATION_EVENT, c, Array.from(d.values())));
+    const fireScriptRun = async (c, d) => {
+      return this._eventBus.fire(RUN_CODE_EVALUATION_EVENT, c, Array.from(d.values()));
     };
 
-    const results = await fireScriptRun(code, data);
-    if (results.output && results.output === 'true') {
-      this._simulator.setConfig(ctx.element, { activeOutgoing: outgoing });
-      this._exclusiveGatewayBehavior.enter(ctx);
-      return Promise.resolve(results);
-    } else {
-      throw new Error('Unable to evaluate expression');
-    }
-  }
+    return fireScriptRun(code, data).then(results => { return { ...results, outgoing, context: ctx };});
+  };
 
   simulator.registerBehavior('bpmn:ExclusiveGateway', this);
 }
+
+ExclusiveGatewayBehavior.prototype.sortSequenceFlows = function(element, defaultFlow) {
+  /*
+   * Gateway sequence flow order for evaluation
+   *
+   * If set default and more than 2 ways, with a 'cross-condition' evaluation, choose the first following flow-id order
+   * i.e. flow-1 === default
+   * [ flow-2, flow-3, flow-1] (like a switch-case instruction)
+   *
+   */
+  return filterSequenceFlows(element.outgoing).sort((first, second) => {
+    let firstId = first.id.toUpperCase();
+    let secondId = second.id.toUpperCase();
+
+    if (first.id === defaultFlow) {
+      return 1;
+    }
+    if (firstId < secondId) {
+      return -1;
+    }
+    if (firstId > secondId) {
+      return 1;
+    }
+
+    // ids must be equal
+    return 0;
+  });
+};
 
 ExclusiveGatewayBehavior.prototype.enter = function(context) {
   const { element, scope } = context;
 
   if (scope.data && scope.data.size) {
 
-    const outgoings = filterSequenceFlows(element.outgoing);
+    let bo = getBusinessObject(element);
+    const defaultFlow = bo.default?.id;
 
-    /*
-     * TODO : Gateway sequenceflow order for evaluation
-     *
-     * If set default and more than 2 ways, with a 'cross-condition' evaluation, choose the first following flow-id order
-     * i.e. flow-1 === default
-     * [ flow-2, flow-3, flow-1] (like a switch-case instruction)
-     *
-     */
+    const outgoings = this.sortSequenceFlows(element, defaultFlow);
 
-    outgoings.forEach(async outgoing => {
-      console.log(outgoing);
-      let bo = getBusinessObject(outgoing);
-      const conditionExpression = bo.conditionExpression;
-      const expression = conditionExpression.body;
-      let code;
+    const promises = [];
 
-      if (conditionExpression.language && conditionExpression.language === 'groovy') {
-        code = expression;
-      } else if (isExpressionPattern.test(expression)) {
+    outgoings.every(async outgoing => {
+      let outgoingBo = getBusinessObject(outgoing);
+      const conditionExpression = outgoingBo.conditionExpression;
+      if (conditionExpression) {
+        const expression = conditionExpression.body;
+        let code;
 
-        // Expression
-        const expressionMatch = expression.match(expressionPattern);
-        code = expressionMatch[1];
+        if (conditionExpression?.language === 'groovy') {
+          code = expression;
+        } else if (isExpressionPattern.test(expression)) {
+
+          // Expression
+          const expressionMatch = expression.match(expressionPattern);
+          code = expressionMatch[1];
+        } else {
+
+          /*
+           * TODO: Notification warning - Script is not groovy?
+           *  USE ElementSupport / ElementNotification module example
+           */
+          return false;
+        }
+
+        // Script
+        promises.push(this.runScript(code, scope.data, outgoing, context));
+      } else if (outgoing.id === defaultFlow) {
+        promises.push(Promise.resolve({ output: 'true', outgoing, context }));
       } else {
 
         /*
-         * TODO: Notification warning - Script is not groovy?
+         * TODO: Notification warning - Condition not defined
          *  USE ElementSupport / ElementNotification module example
          */
-
+        return false;
       }
-
-      // Script
-      try {
-        await this.runScript(code, scope.data, outgoing, context);
-      } catch (e) {
-
-        /*
-         * TODO: Notification warning - Script error
-         *  USE ElementSupport / ElementNotification module example
-         */
-      }
-
+      return true;
     });
+
+    Promise.all(promises).then(executions => {
+      executions.every(execution => {
+        if (execution.output &&
+          execution.output === 'true') {
+          this._simulator.setConfig(execution.context.element, { activeOutgoing: execution.outgoing });
+          this._exclusiveGatewayBehavior.enter(execution.context);
+          return false;
+        }
+        return true;
+      });
+    }).catch(error => {
+
+      /*
+       * TODO: Notification error execution failed
+       *  USE ElementSupport / ElementNotification module example
+       */
+      console.error(error);
+    });
+
   } else {
     this._exclusiveGatewayBehavior.enter(context);
   }
