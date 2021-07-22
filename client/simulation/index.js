@@ -1,8 +1,8 @@
-import DataBehaviour from './DataBehaviour';
+import DataNotifications from './DataNotifications';
 import ExclusiveGatewayBehavior from './ExclusiveGatewayBehavior';
 
 export default {
-  __init__: ['dataBehaviour', 'dataExclusiveGatewayBehavior'],
-  dataBehaviour: ['type', DataBehaviour],
+  __init__: ['dataNotifications', 'dataExclusiveGatewayBehavior'],
+  dataNotifications: ['type', DataNotifications],
   dataExclusiveGatewayBehavior: ['type', ExclusiveGatewayBehavior]
 };

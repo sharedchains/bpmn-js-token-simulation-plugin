@@ -506,49 +506,80 @@ function createInputTemplate(properties, canRemove) {
 
 /***/ }),
 
-/***/ "./client/simulation/DataBehaviour.js":
-/*!********************************************!*\
-  !*** ./client/simulation/DataBehaviour.js ***!
-  \********************************************/
+/***/ "./client/simulation/DataNotifications.js":
+/*!************************************************!*\
+  !*** ./client/simulation/DataNotifications.js ***!
+  \************************************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "default": () => (/* binding */ DataBehavior)
+/* harmony export */   "default": () => (/* binding */ DataNotifications)
 /* harmony export */ });
-function DataBehavior(simulator, dataTokenSimulation) {
-  this._simulator = simulator;
-  this._data = dataTokenSimulation;
-
-  // TODO: Will definitely answer to SCOPE events to return some data
-
-  simulator.on('trace', (event) => {
-    const {
-      scope,
-      action,
-      element
-    } = event;
-
-    if (scope) {
-      const {
-        initiator,
-        data,
-        element: scopeElement
-      } = scope;
+/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! min-dom */ "./node_modules/min-dom/dist/index.esm.js");
+/* harmony import */ var bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/**
+ * @license ElementNotifications.js
+ * Copyright 2017 bpmn.io
+ * SPDX-License-Identifier: MIT
+ */
 
 
-      console.log(`${action}ing element ${scopeElement.id} with data ${JSON.stringify([...data], null, 2)}`);
-      // TODO: DATA EVALUATION?
-    }
 
-    console.log(`${action} for element ${element.id}`);
 
+
+const OFFSET_TOP = -15;
+const OFFSET_LEFT = 15;
+
+function DataNotifications(overlays, eventBus) {
+  this._overlays = overlays;
+
+  eventBus.on([
+    bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.RESET_SIMULATION_EVENT,
+    bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_MODE_EVENT
+  ], () => {
+    this.clear();
   });
-
 }
 
-DataBehavior.$inject = ['simulator', 'dataTokenSimulation'];
+DataNotifications.prototype.addElementNotification = function(element, options) {
+  const position = {
+    top: OFFSET_TOP,
+    left: OFFSET_LEFT
+  };
+
+  const {
+    type,
+    icon,
+    text,
+  } = options;
+
+  const html = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(`
+    <div class="data-notification ${ type || '' }">
+      ${ icon ? `<i class="fa ${ icon }"></i>` : '' }
+      <span class="text">${ text }</span>
+    </div>
+  `);
+
+  this._overlays.add(element, 'data-notification', {
+    position: position,
+    html: html,
+    show: {
+      minZoom: 0.5
+    }
+  });
+};
+
+DataNotifications.prototype.clear = function() {
+  this._overlays.remove({ type: 'data-notification' });
+};
+
+DataNotifications.prototype.removeElementNotification = function(element) {
+  this._overlays.remove({ element: element });
+};
+
+DataNotifications.$inject = [ 'overlays', 'eventBus' ];
 
 /***/ }),
 
@@ -573,10 +604,11 @@ __webpack_require__.r(__webpack_exports__);
 const isExpressionPattern = /^\${(.+?)}$/;
 const expressionPattern = /\${(.+?)}/;
 
-function ExclusiveGatewayBehavior(simulator, eventBus, exclusiveGatewayBehavior) {
+function ExclusiveGatewayBehavior(simulator, eventBus, exclusiveGatewayBehavior, dataNotifications) {
   this._simulator = simulator;
   this._eventBus = eventBus;
   this._exclusiveGatewayBehavior = exclusiveGatewayBehavior;
+  this._dataNotifications = dataNotifications;
 
   this.runScript = async (code, data, outgoing, ctx) => {
 
@@ -584,19 +616,14 @@ function ExclusiveGatewayBehavior(simulator, eventBus, exclusiveGatewayBehavior)
       return this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.RUN_CODE_EVALUATION_EVENT, c, Array.from(d.values()));
     };
 
-    return fireScriptRun(code, data).then(results => { return { ...results, outgoing, context: ctx };});
-
-    // const results = Promise.resolve(fireScriptRun(code, data));
-    // await results;
-    // results.moveToken = false;
-    // if (results.output &&
-    //   (results.moveToken = results.output === 'true')) {
-    //   this._simulator.setConfig(ctx.element, { activeOutgoing: outgoing });
-    //   this._exclusiveGatewayBehavior.enter(ctx);
-    // } else if (results.error) {
-    //   return Promise.reject(results);
-    // }
-    // return Promise.resolve(results);
+    return fireScriptRun(code, data).then(results => {
+      let newResults = { ...results, outgoing, context: ctx };
+      if (newResults.error) {
+        return Promise.reject(newResults);
+      } else {
+        return Promise.resolve(newResults);
+      }
+    });
   };
 
   simulator.registerBehavior('bpmn:ExclusiveGateway', this);
@@ -657,11 +684,11 @@ ExclusiveGatewayBehavior.prototype.enter = function(context) {
           const expressionMatch = expression.match(expressionPattern);
           code = expressionMatch[1];
         } else {
-
-          /*
-           * TODO: Notification warning - Script is not groovy?
-           *  USE ElementSupport / ElementNotification module example
-           */
+          this._dataNotifications.addElementNotification(outgoing, {
+            type: 'error',
+            icon: 'fa-exclamation-triangle',
+            text: 'Script language is not groovy or is not a valid expression'
+          });
           return false;
         }
 
@@ -670,11 +697,11 @@ ExclusiveGatewayBehavior.prototype.enter = function(context) {
       } else if (outgoing.id === defaultFlow) {
         promises.push(Promise.resolve({ output: 'true', outgoing, context }));
       } else {
-
-        /*
-         * TODO: Notification warning - Condition not defined
-         *  USE ElementSupport / ElementNotification module example
-         */
+        this._dataNotifications.addElementNotification(outgoing, {
+          type: 'error',
+          icon: 'fa-exclamation-triangle',
+          text: 'Missing condition'
+        });
         return false;
       }
       return true;
@@ -691,12 +718,11 @@ ExclusiveGatewayBehavior.prototype.enter = function(context) {
         return true;
       });
     }).catch(error => {
-
-      /*
-       * TODO: Notification error execution failed
-       *  USE ElementSupport / ElementNotification module example
-       */
-      console.error(error);
+      this._dataNotifications.addElementNotification(context.element, {
+        type: 'error',
+        icon: 'fa-exclamation-triangle',
+        text: error.error
+      });
     });
 
   } else {
@@ -708,7 +734,7 @@ ExclusiveGatewayBehavior.prototype.exit = function(context) {
   return this._exclusiveGatewayBehavior.exit(context);
 };
 
-ExclusiveGatewayBehavior.$inject = ['simulator', 'eventBus', 'exclusiveGatewayBehavior'];
+ExclusiveGatewayBehavior.$inject = ['simulator', 'eventBus', 'exclusiveGatewayBehavior', 'dataNotifications'];
 
 /***/ }),
 
@@ -723,14 +749,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
-/* harmony import */ var _DataBehaviour__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./DataBehaviour */ "./client/simulation/DataBehaviour.js");
+/* harmony import */ var _DataNotifications__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./DataNotifications */ "./client/simulation/DataNotifications.js");
 /* harmony import */ var _ExclusiveGatewayBehavior__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./ExclusiveGatewayBehavior */ "./client/simulation/ExclusiveGatewayBehavior.js");
 
 
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
-  __init__: ['dataBehaviour', 'dataExclusiveGatewayBehavior'],
-  dataBehaviour: ['type', _DataBehaviour__WEBPACK_IMPORTED_MODULE_0__.default],
+  __init__: ['dataNotifications', 'dataExclusiveGatewayBehavior'],
+  dataNotifications: ['type', _DataNotifications__WEBPACK_IMPORTED_MODULE_0__.default],
   dataExclusiveGatewayBehavior: ['type', _ExclusiveGatewayBehavior__WEBPACK_IMPORTED_MODULE_1__.default]
 });
 

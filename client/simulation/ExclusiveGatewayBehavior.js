@@ -5,10 +5,11 @@ import { RUN_CODE_EVALUATION_EVENT } from '../events/EventHelper';
 const isExpressionPattern = /^\${(.+?)}$/;
 const expressionPattern = /\${(.+?)}/;
 
-export default function ExclusiveGatewayBehavior(simulator, eventBus, exclusiveGatewayBehavior) {
+export default function ExclusiveGatewayBehavior(simulator, eventBus, exclusiveGatewayBehavior, dataNotifications) {
   this._simulator = simulator;
   this._eventBus = eventBus;
   this._exclusiveGatewayBehavior = exclusiveGatewayBehavior;
+  this._dataNotifications = dataNotifications;
 
   this.runScript = async (code, data, outgoing, ctx) => {
 
@@ -16,7 +17,14 @@ export default function ExclusiveGatewayBehavior(simulator, eventBus, exclusiveG
       return this._eventBus.fire(RUN_CODE_EVALUATION_EVENT, c, Array.from(d.values()));
     };
 
-    return fireScriptRun(code, data).then(results => { return { ...results, outgoing, context: ctx };});
+    return fireScriptRun(code, data).then(results => {
+      let newResults = { ...results, outgoing, context: ctx };
+      if (newResults.error) {
+        return Promise.reject(newResults);
+      } else {
+        return Promise.resolve(newResults);
+      }
+    });
   };
 
   simulator.registerBehavior('bpmn:ExclusiveGateway', this);
@@ -77,11 +85,11 @@ ExclusiveGatewayBehavior.prototype.enter = function(context) {
           const expressionMatch = expression.match(expressionPattern);
           code = expressionMatch[1];
         } else {
-
-          /*
-           * TODO: Notification warning - Script is not groovy?
-           *  USE ElementSupport / ElementNotification module example
-           */
+          this._dataNotifications.addElementNotification(outgoing, {
+            type: 'error',
+            icon: 'fa-exclamation-triangle',
+            text: 'Script language is not groovy or is not a valid expression'
+          });
           return false;
         }
 
@@ -90,11 +98,11 @@ ExclusiveGatewayBehavior.prototype.enter = function(context) {
       } else if (outgoing.id === defaultFlow) {
         promises.push(Promise.resolve({ output: 'true', outgoing, context }));
       } else {
-
-        /*
-         * TODO: Notification warning - Condition not defined
-         *  USE ElementSupport / ElementNotification module example
-         */
+        this._dataNotifications.addElementNotification(outgoing, {
+          type: 'error',
+          icon: 'fa-exclamation-triangle',
+          text: 'Missing condition'
+        });
         return false;
       }
       return true;
@@ -111,12 +119,11 @@ ExclusiveGatewayBehavior.prototype.enter = function(context) {
         return true;
       });
     }).catch(error => {
-
-      /*
-       * TODO: Notification error execution failed
-       *  USE ElementSupport / ElementNotification module example
-       */
-      console.error(error);
+      this._dataNotifications.addElementNotification(context.element, {
+        type: 'error',
+        icon: 'fa-exclamation-triangle',
+        text: error.error
+      });
     });
 
   } else {
@@ -128,4 +135,4 @@ ExclusiveGatewayBehavior.prototype.exit = function(context) {
   return this._exclusiveGatewayBehavior.exit(context);
 };
 
-ExclusiveGatewayBehavior.$inject = ['simulator', 'eventBus', 'exclusiveGatewayBehavior'];
+ExclusiveGatewayBehavior.$inject = ['simulator', 'eventBus', 'exclusiveGatewayBehavior', 'dataNotifications'];
