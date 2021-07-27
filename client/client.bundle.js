@@ -68,9 +68,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (/* binding */ Data)
 /* harmony export */ });
-/* harmony import */ var bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
-/* harmony import */ var bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! bpmn-js/lib/util/ModelUtil */ "./node_modules/bpmn-js/lib/util/ModelUtil.js");
+/* harmony import */ var bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! bpmn-js/lib/util/ModelUtil */ "./node_modules/bpmn-js/lib/util/ModelUtil.js");
 /* harmony import */ var bpmn_js_properties_panel_lib_Utils__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! bpmn-js-properties-panel/lib/Utils */ "./node_modules/bpmn-js-properties-panel/lib/Utils.js");
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../events/EventHelper */ "./client/events/EventHelper.js");
+
 
 
 
@@ -84,11 +86,11 @@ class Data {
       this._data = [];
     });
 
-    eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.RESET_SIMULATION_EVENT, 500, () => {
+    eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_2__.RESET_SIMULATION_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.LOW_PRIORITY, () => {
       this._data.forEach(dataObject => dataObject.simulation = undefined);
     });
 
-    eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.SCOPE_CREATE_EVENT, event => {
+    eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_2__.SCOPE_CREATE_EVENT, event => {
       const {
         scope
       } = event;
@@ -102,19 +104,20 @@ class Data {
       if (initiator && initiator.type === 'bpmn:MessageFlow') {
         // We need to pass the scope from the "source" process to the "target" process
         const { source, target } = element;
-        let sDataObject = this.getSimulationData(source).find(Boolean) || this.getDataElements(getProcessOrParticipantElement(source)).find(Boolean) || [];
-        let processOrParticipantElement = getProcessOrParticipantElement(target);
-        let tDataObject = this.getSimulationData(processOrParticipantElement).find(Boolean) || this.getDataElements(processOrParticipantElement).find(Boolean) || [];
+        let sDataObject = this.getSimulationData(this.#getProcessOrParticipantElement(source)) || this.getDataElements(this.#getProcessOrParticipantElement(source)) || [];
+        let processOrParticipantElement = this.#getProcessOrParticipantElement(target);
+        let tDataObject = this.getSimulationData(processOrParticipantElement) || this.getDataElements(processOrParticipantElement) || [];
         scope.data = new Map([...sDataObject, ...tDataObject]);
 
         let oldData = this._data.find(dataObject => dataObject.element.id === processOrParticipantElement.id);
         if (oldData) {
           oldData.simulation = new Map([...scope.data]);
+        } else {
+          this.setDataSimulationMap(processOrParticipantElement, new Map([...scope.data]));
         }
-
       } else {
-        let processOrParticipantElement = getProcessOrParticipantElement(element);
-        let dataObject = this.getSimulationData(processOrParticipantElement).find(Boolean) || this.getDataElements(processOrParticipantElement).find(Boolean) || [];
+        let processOrParticipantElement = this.#getProcessOrParticipantElement(element);
+        let dataObject = this.getSimulationData(processOrParticipantElement) || this.getDataElements(processOrParticipantElement) || [];
         scope.data = new Map([...dataObject]);
 
         let oldData = this._data.find(obj => obj.element.id === processOrParticipantElement.id);
@@ -125,71 +128,118 @@ class Data {
 
     });
 
-    function getProcessOrParticipantElement(element) {
-      let bo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.getBusinessObject)(element);
-
-      if ((0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.is)(element, 'bpmn:Process') || (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.is)(element, 'bpmn:Participant')) {
-        return bo;
+    eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.GET_RESULT_VARIABLE_TYPE_EVENT, (event, ctx) => {
+      return this.getResultVariableType(ctx.element, ctx.resultVariable);
+    });
+    eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.SET_RESULT_VARIABLE_TYPE_EVENT, (event, ctx) => {
+      let elem = this.#getProcessOrParticipantElement(ctx.element);
+      let dataObject = this.getDataObject(elem);
+      if (!dataObject) {
+        dataObject = { element: elem, data: new Map(), simulation: new Map(), resultVariables: {} };
+        this._data.push(dataObject);
       }
+      dataObject.resultVariables[ctx.resultVariable] = ctx.resultVariableType;
+    });
+  }
 
-      let rootProcess = getRootProcess(bo);
-      let collaboration = (0,bpmn_js_properties_panel_lib_Utils__WEBPACK_IMPORTED_MODULE_0__.findRootElementsByType)(bo, 'bpmn:Collaboration');
+  getResultVariableType(element, resultVariable) {
+    return this.getDataObject(this.#getProcessOrParticipantElement(element))?.resultVariables[resultVariable];
+  }
 
-      if (collaboration.length > 0) {
-        let participants = collaboration[0].participants.filter(participant => participant.processRef.id === rootProcess.id);
-        return participants[0];
-      } else {
-        return rootProcess;
-      }
+  #getProcessOrParticipantElement(element) {
+    let bo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__.getBusinessObject)(element);
+
+    if ((0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:Process') || (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:Participant')) {
+      return bo;
     }
 
-    function getRootProcess(businessObject) {
-      var parent = businessObject;
-      while (parent.$parent && !(0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.is)(parent, 'bpmn:Process')) {
-        parent = parent.$parent;
-      }
-      return parent;
+    let rootProcess = this.#getRootProcess(bo);
+    let collaboration = (0,bpmn_js_properties_panel_lib_Utils__WEBPACK_IMPORTED_MODULE_0__.findRootElementsByType)(bo, 'bpmn:Collaboration');
+
+    if (collaboration.length > 0) {
+      let participants = collaboration[0].participants.filter(participant => participant.processRef.id === rootProcess.id);
+      return participants[0];
+    } else {
+      return rootProcess;
+    }
+  }
+
+  #getRootProcess(businessObject) {
+    let parent = businessObject;
+    while (parent.$parent && !(0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__.is)(parent, 'bpmn:Process')) {
+      parent = parent.$parent;
+    }
+    return parent;
+  }
+
+  getDataObject(element) {
+    return this._data.find(obj => obj.element.id === element.id);
+  }
+
+  setDataSimulationMap(element, map) {
+    let elem = this.#getProcessOrParticipantElement(element);
+    let index = this._data.findIndex(obj => obj.element.id === elem.id);
+    if (index !== -1) {
+      this._data[index].simulation = map;
+    } else {
+      this._data.push({ element: elem, data: undefined, simulation: map, resultVariables: {} });
     }
   }
 
   addDataElement(element) {
-
-    let dataObject = this.getDataElements(element);
-    let map;
-    if (dataObject.length > 0) {
-      map = dataObject[0];
-    } else {
+    let elem = this.#getProcessOrParticipantElement(element);
+    let map = this.getDataElements(elem);
+    if (!map || map.length === 0) {
       map = new Map();
-      this._data.push({ element, data: map, simulation: undefined });
+      this._data.push({ element: elem, data: map, simulation: undefined, resultVariables: {} });
     }
     map.set('', {});
   }
 
   getDataElements(element) {
-    return this._data.filter(dataObject => dataObject.element.id === element.id).map(dataObject => dataObject.data);
+    let elem = this.#getProcessOrParticipantElement(element);
+    if (elem) {
+      return this.getDataObject(elem)?.data;
+    } else {
+      return [];
+    }
   }
 
   getSimulationData(element) {
-    return this._data.filter(dataObject => dataObject.element.id === element.id).map(dataObject => dataObject.simulation);
+    let elem = this.#getProcessOrParticipantElement(element);
+    if (elem) {
+      return this.getDataObject(elem)?.simulation;
+    } else {
+      return [];
+    }
+  }
+
+  addSimulationData(element, value) {
+    let elem = this.#getProcessOrParticipantElement(element);
+    let dataObject = this.getDataObject(elem);
+    if (!dataObject.simulation) {
+      dataObject.simulation = new Map([...dataObject.data]);
+    }
+    dataObject.simulation.set(value['name'], value);
   }
 
   updateDataElement(element, value, index) {
-    let dataObject = this.getDataElements(element);
-    if (dataObject.length === 0) {
+    let elem = this.#getProcessOrParticipantElement(element);
+    let map = this.getDataElements(elem);
+    if (!map || map.length === 0) {
       return;
     }
-    let map = dataObject[0];
     let keyMap = Array.from(map.keys())[index];
     map.delete(keyMap);
     map.set(value['name'], value);
   }
 
   removeDataElement(element, index) {
-    let dataObject = this.getDataElements(element);
-    if (dataObject.length === 0) {
+    let elem = this.#getProcessOrParticipantElement(element);
+    let map = this.getDataElements(elem);
+    if (!map || map.length === 0) {
       return;
     }
-    let map = dataObject[0];
     let keyMap = Array.from(map.keys())[index];
     map.delete(keyMap);
   }
@@ -232,15 +282,26 @@ __webpack_require__.r(__webpack_exports__);
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "DATA_GET_EVENT": () => (/* binding */ DATA_GET_EVENT),
-/* harmony export */   "DATA_NEW_ASSIGN_EVENT": () => (/* binding */ DATA_NEW_ASSIGN_EVENT),
+/* harmony export */   "SET_RESULT_VARIABLE_TYPE_EVENT": () => (/* binding */ SET_RESULT_VARIABLE_TYPE_EVENT),
+/* harmony export */   "GET_RESULT_VARIABLE_TYPE_EVENT": () => (/* binding */ GET_RESULT_VARIABLE_TYPE_EVENT),
 /* harmony export */   "CODE_EDITOR_PLUGIN_PRESENT_EVENT": () => (/* binding */ CODE_EDITOR_PLUGIN_PRESENT_EVENT),
-/* harmony export */   "RUN_CODE_EVALUATION_EVENT": () => (/* binding */ RUN_CODE_EVALUATION_EVENT)
+/* harmony export */   "RUN_CODE_EVALUATION_EVENT": () => (/* binding */ RUN_CODE_EVALUATION_EVENT),
+/* harmony export */   "GET_DATA_TYPES_EVENT": () => (/* binding */ GET_DATA_TYPES_EVENT),
+/* harmony export */   "LOW_PRIORITY": () => (/* binding */ LOW_PRIORITY),
+/* harmony export */   "DEFAULT_PRIORITY": () => (/* binding */ DEFAULT_PRIORITY),
+/* harmony export */   "MID_HIGH_PRIORITY": () => (/* binding */ MID_HIGH_PRIORITY),
+/* harmony export */   "HIGH_PRIORITY": () => (/* binding */ HIGH_PRIORITY)
 /* harmony export */ });
-const DATA_NEW_ASSIGN_EVENT = 'tokenSimulation.data.newAssign';
-const DATA_GET_EVENT = 'tokenSimulation.data.get';
+const SET_RESULT_VARIABLE_TYPE_EVENT = 'tokenSimulation.resultVariableType.set';
+const GET_RESULT_VARIABLE_TYPE_EVENT = 'tokenSimulation.resultVariableType.get';
 const CODE_EDITOR_PLUGIN_PRESENT_EVENT = 'codeEditor.init';
 const RUN_CODE_EVALUATION_EVENT = 'codeEditor.run';
+const GET_DATA_TYPES_EVENT = 'codeEditor.getTypes';
+
+const LOW_PRIORITY = 500;
+const DEFAULT_PRIORITY = 1000;
+const MID_HIGH_PRIORITY = 6000;
+const HIGH_PRIORITY = 10000;
 
 
 
@@ -262,17 +323,15 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-const LOW_PRIORITY = 500;
-
 // Return elements entries in the custom tab
-function createTokenTabGroup(translate, element, dataTokenSimulation) {
+function createTokenTabGroup(translate, element, dataTokenSimulation, dataTypes) {
   const tokenGroup = {
     id: 'token-data-group',
     label: 'Data',
     entries: []
   };
 
-  (0,_parts_DataProps__WEBPACK_IMPORTED_MODULE_0__.default)(translate, tokenGroup, element, dataTokenSimulation);
+  (0,_parts_DataProps__WEBPACK_IMPORTED_MODULE_0__.default)(translate, tokenGroup, element, dataTokenSimulation, dataTypes);
 
   return [
     tokenGroup
@@ -289,10 +348,11 @@ class TokenPropertiesProvider {
     this._dataTokenSimulation = dataTokenSimulation;
     this.active = false;
 
-    propertiesPanel.registerProvider(LOW_PRIORITY, this);
+    propertiesPanel.registerProvider(_events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.LOW_PRIORITY, this);
 
-    eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, () => {
+    eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.LOW_PRIORITY, (event, ctx) => {
       this.active = true;
+      this.dataTypes = ctx.dataTypes;
     });
   }
 
@@ -300,6 +360,7 @@ class TokenPropertiesProvider {
     const translate = this._translate;
     const dataTokenSimulation = this._dataTokenSimulation;
     const active = this.active;
+    const dataTypes = this.dataTypes;
 
     return function(entries) {
 
@@ -308,7 +369,7 @@ class TokenPropertiesProvider {
         const tokenTab = {
           id: 'data-token-simulation-tab',
           label: 'Data simulation',
-          groups: createTokenTabGroup(translate, element, dataTokenSimulation)
+          groups: createTokenTabGroup(translate, element, dataTokenSimulation, dataTypes)
         };
         entries.push(tokenTab);
       }
@@ -384,38 +445,22 @@ const DELETE_ROW_BUTTON_SNIPPET = '<button class="action-button clear" data-acti
   '<span>X</span>' +
   '</button>';
 
-// TODO: Use eventBus to obtain types from codeEditor plugin!
-const typeSelectValues = [
-  { value: '', displayValue: '' },
-  { value: 'BOOLEAN', displayValue: 'Boolean' },
-  { value: 'BYTES', displayValue: 'Byte Array' },
-  { value: 'STRING', displayValue: 'String' },
-  { value: 'SHORT', displayValue: 'Short' },
-  { value: 'DOUBLE', displayValue: 'Double' },
-  { value: 'INTEGER', displayValue: 'Integer' },
-  { value: 'LONG', displayValue: 'Long' },
-  { value: 'DATE', displayValue: 'Date' },
-  { value: 'DATETIME', displayValue: 'Date & time' },
-  { value: 'JSON', displayValue: 'JSON' },
-  { value: 'XML', displayValue: 'XML' }
-];
-
 function getContainer(node) {
   return (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.query)('div[data-list-entry-container]', node);
 }
 
-function createInputRowTemplate(properties, canRemove) {
-  var template = TABLE_ROW_DIV_SNIPPET;
-  template += createInputTemplate(properties, canRemove);
+function createInputRowTemplate(dataTypes, properties, canRemove) {
+  let template = TABLE_ROW_DIV_SNIPPET;
+  template += createInputTemplate(dataTypes, properties, canRemove);
   template += canRemove ? DELETE_ROW_BUTTON_SNIPPET : '';
   template += '</div>';
 
   return template;
 }
 
-function createInputTemplate(properties, canRemove) {
-  var columns = properties.length;
-  var template = '';
+function createInputTemplate(dataTypes, properties, canRemove) {
+  let columns = properties.length;
+  let template = '';
   properties.forEach(function(prop, idx) {
 
     if (prop === 'type') {
@@ -424,9 +469,10 @@ function createInputTemplate(properties, canRemove) {
         'id="camunda-table-row-cell-input-value-' + idx + '" ' +
         'name="' + (0,bpmn_js_properties_panel_lib_Utils__WEBPACK_IMPORTED_MODULE_1__.escapeHTML)(prop) + '"' +
         ' data-value>';
-      typeSelectValues.map(option => {
-        template += '<option value="' + (0,bpmn_js_properties_panel_lib_Utils__WEBPACK_IMPORTED_MODULE_1__.escapeHTML)(option.value) + '">' +
-          (0,bpmn_js_properties_panel_lib_Utils__WEBPACK_IMPORTED_MODULE_1__.escapeHTML)(option.displayValue) +
+      dataTypes.map(option => {
+        template +=
+          '<option value="' + (0,bpmn_js_properties_panel_lib_Utils__WEBPACK_IMPORTED_MODULE_1__.escapeHTML)(option.value) + '">' +
+            (0,bpmn_js_properties_panel_lib_Utils__WEBPACK_IMPORTED_MODULE_1__.escapeHTML)(option.name) +
           '</option>';
       });
       template += '</select>';
@@ -441,7 +487,7 @@ function createInputTemplate(properties, canRemove) {
   return template;
 }
 
-/* harmony default export */ function __WEBPACK_DEFAULT_EXPORT__(translate, group, element, data) {
+/* harmony default export */ function __WEBPACK_DEFAULT_EXPORT__(translate, group, element, data, dataTypes) {
 
   // Table
   let modelProperties = ['name', 'value', 'type'];
@@ -454,39 +500,38 @@ function createInputTemplate(properties, canRemove) {
       id: 'data',
       labels: ['Name', 'Value', 'Type'],
       modelProperties,
-      addElement: function(element, node) {
-        data.addDataElement(element);
+      addElement: function(el, _node) {
+        data.addDataElement(el);
         return [];
       },
-      getElements: function(element, node) {
-        let dataElements = data.getDataElements(element);
-        if (dataElements.length === 0) {
+      getElements: function(el, _node) {
+        let dataMap = data.getDataElements(el);
+        if (!dataMap || dataMap.length === 0) {
           return [];
         }
         let result = [];
-        let dataMap = dataElements[0];
         for (let value of dataMap.values()) {
           result.push(value);
         }
         return result;
       },
-      updateElement: function(element, value, node, idx) {
-        data.updateDataElement(element, value, idx);
+      updateElement: function(el, value, node, idx) {
+        data.updateDataElement(el, value, idx);
         return [];
       },
-      removeElement: function(element, node, idx) {
-        data.removeDataElement(element, idx);
+      removeElement: function(el, node, idx) {
+        data.removeDataElement(el, idx);
         return [];
       }
 
-      // Validation?
+      // TODO: Validation
     });
 
     // Need to rewrite addElement and createListEntryTemplate (and, of course createInputRowTemplate, to create data type select)
-    tableEntry.addElement = function(element, node, event, scopeNode) {
-      var template = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(createInputRowTemplate(modelProperties, canRemove));
+    tableEntry.addElement = function(el, node, _event, _scopeNode) {
+      let template = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(createInputRowTemplate(dataTypes, modelProperties, canRemove));
 
-      var container = getContainer(node);
+      let container = getContainer(node);
       container.appendChild(template);
 
       this.__action = {
@@ -495,8 +540,8 @@ function createInputTemplate(properties, canRemove) {
 
       return true;
     };
-    tableEntry.createListEntryTemplate = function(value, index, selectBox) {
-      return createInputRowTemplate(modelProperties, canRemove);
+    tableEntry.createListEntryTemplate = function() {
+      return createInputRowTemplate(dataTypes, modelProperties, canRemove);
     };
 
     group.entries.push(tableEntry);
@@ -506,10 +551,297 @@ function createInputTemplate(properties, canRemove) {
 
 /***/ }),
 
-/***/ "./client/simulation/DataNotifications.js":
-/*!************************************************!*\
-  !*** ./client/simulation/DataNotifications.js ***!
-  \************************************************/
+/***/ "./client/simulation/behaviors/ExclusiveGatewayBehavior.js":
+/*!*****************************************************************!*\
+  !*** ./client/simulation/behaviors/ExclusiveGatewayBehavior.js ***!
+  \*****************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ ExclusiveGatewayBehavior)
+/* harmony export */ });
+/* harmony import */ var bpmn_js_token_simulation_lib_simulator_behaviors_ModelUtil__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/simulator/behaviors/ModelUtil */ "../bpmn-js-token-simulation/lib/simulator/behaviors/ModelUtil.js");
+/* harmony import */ var bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! bpmn-js/lib/util/ModelUtil */ "./node_modules/bpmn-js/lib/util/ModelUtil.js");
+/* harmony import */ var _script_runner_ScriptRunner__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../script-runner/ScriptRunner */ "./client/simulation/script-runner/ScriptRunner.js");
+
+
+
+
+function ExclusiveGatewayBehavior(simulator, scriptRunner, exclusiveGatewayBehavior, dataNotifications) {
+  this._simulator = simulator;
+  this._scriptRunner = scriptRunner;
+  this._exclusiveGatewayBehavior = exclusiveGatewayBehavior;
+  this._dataNotifications = dataNotifications;
+
+  simulator.registerBehavior('bpmn:ExclusiveGateway', this);
+}
+
+ExclusiveGatewayBehavior.prototype.sortSequenceFlows = function(element, defaultFlow) {
+  /*
+   * Gateway sequence flow order for evaluation
+   *
+   * If set default and more than 2 ways, with a 'cross-condition' evaluation, choose the first following flow-id order
+   * i.e. flow-1 === default
+   * [ flow-2, flow-3, flow-1] (like a switch-case instruction)
+   *
+   */
+  return (0,bpmn_js_token_simulation_lib_simulator_behaviors_ModelUtil__WEBPACK_IMPORTED_MODULE_1__.filterSequenceFlows)(element.outgoing).sort((first, second) => {
+    let firstId = first.id.toUpperCase();
+    let secondId = second.id.toUpperCase();
+
+    if (first.id === defaultFlow) {
+      return 1;
+    } else if (second.id === defaultFlow) {
+      return -1;
+    }
+    if (firstId < secondId) {
+      return -1;
+    }
+    if (firstId > secondId) {
+      return 1;
+    }
+
+    // ids must be equal
+    return 0;
+  });
+};
+
+ExclusiveGatewayBehavior.prototype.enter = function(context) {
+  const { element, scope } = context;
+
+  if (scope.data && scope.data.size) {
+
+    let bo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.getBusinessObject)(element);
+    const defaultFlow = bo.default?.id;
+
+    const outgoings = this.sortSequenceFlows(element, defaultFlow);
+
+    const promises = [];
+
+    outgoings.every(async outgoing => {
+      let outgoingBo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.getBusinessObject)(outgoing);
+      const conditionExpression = outgoingBo.conditionExpression;
+      if (conditionExpression) {
+        const expression = conditionExpression.body;
+        let code;
+
+        if (conditionExpression?.language === 'groovy') {
+          code = expression;
+        } else if (_script_runner_ScriptRunner__WEBPACK_IMPORTED_MODULE_0__.isExpressionPattern.test(expression)) {
+
+          // Expression
+          const expressionMatch = expression.match(_script_runner_ScriptRunner__WEBPACK_IMPORTED_MODULE_0__.expressionPattern);
+          code = expressionMatch[1];
+        } else {
+          this._dataNotifications.addElementNotification(outgoing, {
+            type: 'error',
+            icon: 'fa-exclamation-triangle',
+            text: 'Script language is not groovy or is not a valid expression'
+          });
+          return false;
+        }
+
+        // Script
+        promises.push(this._scriptRunner.runScript(code, scope.data, { outgoing, context }));
+      } else if (outgoing.id === defaultFlow) {
+        promises.push(Promise.resolve({ output: 'true', outgoing, context }));
+      } else {
+        this._dataNotifications.addElementNotification(outgoing, {
+          type: 'error',
+          icon: 'fa-exclamation-triangle',
+          text: 'Missing condition'
+        });
+        return false;
+      }
+      return true;
+    });
+
+    this.evaluatePromises(promises);
+
+  } else {
+    this._exclusiveGatewayBehavior.enter(context);
+  }
+};
+
+ExclusiveGatewayBehavior.prototype.evaluatePromises = function(promises) {
+  Promise.all(promises).then(executions => {
+    executions.every(execution => {
+      if (execution.output &&
+        execution.output === 'true') {
+        this._simulator.setConfig(execution.context.element, { activeOutgoing: execution.outgoing });
+        this._exclusiveGatewayBehavior.enter(execution.context);
+        return false;
+      }
+      return true;
+    });
+  }).catch(error => {
+    this._dataNotifications.addElementNotification(context.element, {
+      type: 'error',
+      icon: 'fa-exclamation-triangle',
+      text: error.error
+    });
+  });
+};
+
+ExclusiveGatewayBehavior.prototype.exit = function(context) {
+  return this._exclusiveGatewayBehavior.exit(context);
+};
+
+ExclusiveGatewayBehavior.$inject = ['simulator', 'scriptRunner', 'exclusiveGatewayBehavior', 'dataNotifications'];
+
+/***/ }),
+
+/***/ "./client/simulation/behaviors/ScriptTaskBehavior.js":
+/*!***********************************************************!*\
+  !*** ./client/simulation/behaviors/ScriptTaskBehavior.js ***!
+  \***********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ ScriptTaskBehavior)
+/* harmony export */ });
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../events/EventHelper */ "./client/events/EventHelper.js");
+/* harmony import */ var bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! bpmn-js/lib/util/ModelUtil */ "./node_modules/bpmn-js/lib/util/ModelUtil.js");
+
+
+
+function ScriptTaskBehavior(simulator, eventBus, activityBehavior, scriptRunner, dataTokenSimulation, dataNotifications) {
+  this._activityBehavior = activityBehavior;
+  this._scriptRunner = scriptRunner;
+  this._dataTokenSimulation = dataTokenSimulation;
+  this._dataNotifications = dataNotifications;
+
+  this.active = false;
+
+  simulator.registerBehavior('bpmn:ScriptTask', this);
+
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
+    this.active = true;
+  });
+
+
+  // TODO: To remove when we will show data simulation results
+  simulator.on('trace', (event) => {
+    const {
+      scope,
+      action,
+      element
+    } = event;
+
+    if (scope) {
+      const {
+        initiator,
+        data,
+        element: scopeElement
+      } = scope;
+
+      console.log(`${action}ing element ${scopeElement.id} with data ${JSON.stringify([...data], null, 2)}`);
+    }
+
+    console.log(`${action} for element ${element.id}`);
+
+  });
+}
+
+ScriptTaskBehavior.prototype.signal = function(context) {
+  this._activityBehavior.signal(context);
+};
+
+ScriptTaskBehavior.prototype.enter = function(context) {
+  if (this.active) {
+    const { element, scope } = context;
+    let bo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_1__.getBusinessObject)(element);
+
+    if (bo.scriptFormat !== 'groovy') {
+      this._dataNotifications.addElementNotification(element, {
+        type: 'error',
+        icon: 'fa-exclamation-triangle',
+        text: 'Script format is not groovy'
+      });
+      return;
+    }
+
+    if (!bo.resultVariable) {
+      this._dataNotifications.addElementNotification(element, {
+        type: 'error',
+        icon: 'fa-exclamation-triangle',
+        text: 'Missing result variable for data simulation'
+      });
+      return;
+    }
+
+    let resultVariableType = this._dataTokenSimulation.getResultVariableType(element, bo.resultVariable);
+    if (!resultVariableType) {
+      this._dataNotifications.addElementNotification(element, {
+        type: 'error',
+        icon: 'fa-exclamation-triangle',
+        text: 'Missing result variable type for data simulation'
+      });
+      return;
+    }
+
+    this._scriptRunner.runScript(bo.script, scope.data)
+      .then(results => {
+        this._dataTokenSimulation.addSimulationData(element, {
+          name: bo.resultVariable,
+          value: results.output,
+          type: resultVariableType
+        });
+        this._activityBehavior.enter(context);
+      })
+      .catch(error => {
+        const truncate = (input) => input.length > 200 ? `${input.substring(0, 200)}...` : input;
+        this._dataNotifications.addElementNotification(context.element, {
+          type: 'error',
+          icon: 'fa-exclamation-triangle',
+          text: truncate(error.error)
+        });
+      });
+  } else {
+    this._activityBehavior.enter(context);
+  }
+};
+
+ScriptTaskBehavior.prototype.exit = function(context) {
+  this._activityBehavior.exit(context);
+};
+
+ScriptTaskBehavior.$inject = ['simulator', 'eventBus', 'activityBehavior', 'scriptRunner', 'dataTokenSimulation', 'dataNotifications'];
+
+/***/ }),
+
+/***/ "./client/simulation/behaviors/index.js":
+/*!**********************************************!*\
+  !*** ./client/simulation/behaviors/index.js ***!
+  \**********************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _ScriptTaskBehavior__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./ScriptTaskBehavior */ "./client/simulation/behaviors/ScriptTaskBehavior.js");
+/* harmony import */ var _ExclusiveGatewayBehavior__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./ExclusiveGatewayBehavior */ "./client/simulation/behaviors/ExclusiveGatewayBehavior.js");
+
+
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  __init__: ['dataScriptTaskBehavior', 'dataExclusiveGatewayBehavior'],
+  dataScriptTaskBehavior: ['type', _ScriptTaskBehavior__WEBPACK_IMPORTED_MODULE_0__.default],
+  dataExclusiveGatewayBehavior: ['type', _ExclusiveGatewayBehavior__WEBPACK_IMPORTED_MODULE_1__.default]
+});
+
+/***/ }),
+
+/***/ "./client/simulation/data-notifications/DataNotifications.js":
+/*!*******************************************************************!*\
+  !*** ./client/simulation/data-notifications/DataNotifications.js ***!
+  \*******************************************************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
@@ -583,158 +915,24 @@ DataNotifications.$inject = [ 'overlays', 'eventBus' ];
 
 /***/ }),
 
-/***/ "./client/simulation/ExclusiveGatewayBehavior.js":
+/***/ "./client/simulation/data-notifications/index.js":
 /*!*******************************************************!*\
-  !*** ./client/simulation/ExclusiveGatewayBehavior.js ***!
+  !*** ./client/simulation/data-notifications/index.js ***!
   \*******************************************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "default": () => (/* binding */ ExclusiveGatewayBehavior)
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
-/* harmony import */ var bpmn_js_token_simulation_lib_simulator_behaviors_ModelUtil__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/simulator/behaviors/ModelUtil */ "../bpmn-js-token-simulation/lib/simulator/behaviors/ModelUtil.js");
-/* harmony import */ var bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! bpmn-js/lib/util/ModelUtil */ "./node_modules/bpmn-js/lib/util/ModelUtil.js");
-/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../events/EventHelper */ "./client/events/EventHelper.js");
+/* harmony import */ var _DataNotifications__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./DataNotifications */ "./client/simulation/data-notifications/DataNotifications.js");
 
 
-
-
-const isExpressionPattern = /^\${(.+?)}$/;
-const expressionPattern = /\${(.+?)}/;
-
-function ExclusiveGatewayBehavior(simulator, eventBus, exclusiveGatewayBehavior, dataNotifications) {
-  this._simulator = simulator;
-  this._eventBus = eventBus;
-  this._exclusiveGatewayBehavior = exclusiveGatewayBehavior;
-  this._dataNotifications = dataNotifications;
-
-  this.runScript = async (code, data, outgoing, ctx) => {
-
-    const fireScriptRun = async (c, d) => {
-      return this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.RUN_CODE_EVALUATION_EVENT, c, Array.from(d.values()));
-    };
-
-    return fireScriptRun(code, data).then(results => {
-      let newResults = { ...results, outgoing, context: ctx };
-      if (newResults.error) {
-        return Promise.reject(newResults);
-      } else {
-        return Promise.resolve(newResults);
-      }
-    });
-  };
-
-  simulator.registerBehavior('bpmn:ExclusiveGateway', this);
-}
-
-ExclusiveGatewayBehavior.prototype.sortSequenceFlows = function(element, defaultFlow) {
-  /*
-   * Gateway sequence flow order for evaluation
-   *
-   * If set default and more than 2 ways, with a 'cross-condition' evaluation, choose the first following flow-id order
-   * i.e. flow-1 === default
-   * [ flow-2, flow-3, flow-1] (like a switch-case instruction)
-   *
-   */
-  return (0,bpmn_js_token_simulation_lib_simulator_behaviors_ModelUtil__WEBPACK_IMPORTED_MODULE_1__.filterSequenceFlows)(element.outgoing).sort((first, second) => {
-    let firstId = first.id.toUpperCase();
-    let secondId = second.id.toUpperCase();
-
-    if (first.id === defaultFlow) {
-      return 1;
-    }
-    if (firstId < secondId) {
-      return -1;
-    }
-    if (firstId > secondId) {
-      return 1;
-    }
-
-    // ids must be equal
-    return 0;
-  });
-};
-
-ExclusiveGatewayBehavior.prototype.enter = function(context) {
-  const { element, scope } = context;
-
-  if (scope.data && scope.data.size) {
-
-    let bo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.getBusinessObject)(element);
-    const defaultFlow = bo.default?.id;
-
-    const outgoings = this.sortSequenceFlows(element, defaultFlow);
-
-    const promises = [];
-
-    outgoings.every(async outgoing => {
-      let outgoingBo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.getBusinessObject)(outgoing);
-      const conditionExpression = outgoingBo.conditionExpression;
-      if (conditionExpression) {
-        const expression = conditionExpression.body;
-        let code;
-
-        if (conditionExpression?.language === 'groovy') {
-          code = expression;
-        } else if (isExpressionPattern.test(expression)) {
-
-          // Expression
-          const expressionMatch = expression.match(expressionPattern);
-          code = expressionMatch[1];
-        } else {
-          this._dataNotifications.addElementNotification(outgoing, {
-            type: 'error',
-            icon: 'fa-exclamation-triangle',
-            text: 'Script language is not groovy or is not a valid expression'
-          });
-          return false;
-        }
-
-        // Script
-        promises.push(this.runScript(code, scope.data, outgoing, context));
-      } else if (outgoing.id === defaultFlow) {
-        promises.push(Promise.resolve({ output: 'true', outgoing, context }));
-      } else {
-        this._dataNotifications.addElementNotification(outgoing, {
-          type: 'error',
-          icon: 'fa-exclamation-triangle',
-          text: 'Missing condition'
-        });
-        return false;
-      }
-      return true;
-    });
-
-    Promise.all(promises).then(executions => {
-      executions.every(execution => {
-        if (execution.output &&
-          execution.output === 'true') {
-          this._simulator.setConfig(execution.context.element, { activeOutgoing: execution.outgoing });
-          this._exclusiveGatewayBehavior.enter(execution.context);
-          return false;
-        }
-        return true;
-      });
-    }).catch(error => {
-      this._dataNotifications.addElementNotification(context.element, {
-        type: 'error',
-        icon: 'fa-exclamation-triangle',
-        text: error.error
-      });
-    });
-
-  } else {
-    this._exclusiveGatewayBehavior.enter(context);
-  }
-};
-
-ExclusiveGatewayBehavior.prototype.exit = function(context) {
-  return this._exclusiveGatewayBehavior.exit(context);
-};
-
-ExclusiveGatewayBehavior.$inject = ['simulator', 'eventBus', 'exclusiveGatewayBehavior', 'dataNotifications'];
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  __init__: ['dataNotifications'],
+  dataNotifications: ['type', _DataNotifications__WEBPACK_IMPORTED_MODULE_0__.default]
+});
 
 /***/ }),
 
@@ -749,15 +947,84 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
-/* harmony import */ var _DataNotifications__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./DataNotifications */ "./client/simulation/DataNotifications.js");
-/* harmony import */ var _ExclusiveGatewayBehavior__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./ExclusiveGatewayBehavior */ "./client/simulation/ExclusiveGatewayBehavior.js");
+/* harmony import */ var _data_notifications__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./data-notifications */ "./client/simulation/data-notifications/index.js");
+/* harmony import */ var _behaviors__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./behaviors */ "./client/simulation/behaviors/index.js");
+/* harmony import */ var _script_runner__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./script-runner */ "./client/simulation/script-runner/index.js");
+
 
 
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
-  __init__: ['dataNotifications', 'dataExclusiveGatewayBehavior'],
-  dataNotifications: ['type', _DataNotifications__WEBPACK_IMPORTED_MODULE_0__.default],
-  dataExclusiveGatewayBehavior: ['type', _ExclusiveGatewayBehavior__WEBPACK_IMPORTED_MODULE_1__.default]
+  __depends__: [
+    _behaviors__WEBPACK_IMPORTED_MODULE_1__.default,
+    _script_runner__WEBPACK_IMPORTED_MODULE_2__.default,
+    _data_notifications__WEBPACK_IMPORTED_MODULE_0__.default
+  ]
+});
+
+/***/ }),
+
+/***/ "./client/simulation/script-runner/ScriptRunner.js":
+/*!*********************************************************!*\
+  !*** ./client/simulation/script-runner/ScriptRunner.js ***!
+  \*********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "isExpressionPattern": () => (/* binding */ isExpressionPattern),
+/* harmony export */   "expressionPattern": () => (/* binding */ expressionPattern),
+/* harmony export */   "default": () => (/* binding */ ScriptRunner)
+/* harmony export */ });
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../events/EventHelper */ "./client/events/EventHelper.js");
+
+
+const isExpressionPattern = /^\${(.+?)}$/;
+const expressionPattern = /\${(.+?)}/;
+
+function ScriptRunner(eventBus) {
+  this._eventBus = eventBus;
+}
+
+ScriptRunner.prototype.runScript = async function(code, data, additionalData) {
+  const eventBus = this._eventBus;
+
+  const fireScriptRun = async (c, d) => {
+    return eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.RUN_CODE_EVALUATION_EVENT, c, Array.from(d.values()));
+  };
+
+  return fireScriptRun(code, data).then(results => {
+    let newResults = { ...results, ...additionalData };
+    if (newResults.error) {
+      return Promise.reject(newResults);
+    } else {
+      return Promise.resolve(newResults);
+    }
+  });
+};
+
+ScriptRunner.$inject = ['eventBus'];
+
+/***/ }),
+
+/***/ "./client/simulation/script-runner/index.js":
+/*!**************************************************!*\
+  !*** ./client/simulation/script-runner/index.js ***!
+  \**************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _ScriptRunner__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./ScriptRunner */ "./client/simulation/script-runner/ScriptRunner.js");
+
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  __init__: ['scriptRunner'],
+  scriptRunner: ['type', _ScriptRunner__WEBPACK_IMPORTED_MODULE_0__.default]
 });
 
 /***/ }),

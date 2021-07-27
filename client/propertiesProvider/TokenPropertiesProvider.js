@@ -1,17 +1,15 @@
 import dataProps from './parts/DataProps';
-import { CODE_EDITOR_PLUGIN_PRESENT_EVENT } from '../events/EventHelper';
-
-const LOW_PRIORITY = 500;
+import { CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY } from '../events/EventHelper';
 
 // Return elements entries in the custom tab
-function createTokenTabGroup(translate, element, dataTokenSimulation) {
+function createTokenTabGroup(translate, element, dataTokenSimulation, dataTypes) {
   const tokenGroup = {
     id: 'token-data-group',
     label: 'Data',
     entries: []
   };
 
-  dataProps(translate, tokenGroup, element, dataTokenSimulation);
+  dataProps(translate, tokenGroup, element, dataTokenSimulation, dataTypes);
 
   return [
     tokenGroup
@@ -30,8 +28,9 @@ export default class TokenPropertiesProvider {
 
     propertiesPanel.registerProvider(LOW_PRIORITY, this);
 
-    eventBus.on(CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, () => {
+    eventBus.on(CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, (event, ctx) => {
       this.active = true;
+      this.dataTypes = ctx.dataTypes;
     });
   }
 
@@ -39,6 +38,7 @@ export default class TokenPropertiesProvider {
     const translate = this._translate;
     const dataTokenSimulation = this._dataTokenSimulation;
     const active = this.active;
+    const dataTypes = this.dataTypes;
 
     return function(entries) {
 
@@ -47,7 +47,7 @@ export default class TokenPropertiesProvider {
         const tokenTab = {
           id: 'data-token-simulation-tab',
           label: 'Data simulation',
-          groups: createTokenTabGroup(translate, element, dataTokenSimulation)
+          groups: createTokenTabGroup(translate, element, dataTokenSimulation, dataTypes)
         };
         entries.push(tokenTab);
       }

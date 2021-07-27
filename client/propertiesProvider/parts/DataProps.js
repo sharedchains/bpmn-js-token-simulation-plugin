@@ -16,38 +16,22 @@ const DELETE_ROW_BUTTON_SNIPPET = '<button class="action-button clear" data-acti
   '<span>X</span>' +
   '</button>';
 
-// TODO: Use eventBus to obtain types from codeEditor plugin!
-const typeSelectValues = [
-  { value: '', displayValue: '' },
-  { value: 'BOOLEAN', displayValue: 'Boolean' },
-  { value: 'BYTES', displayValue: 'Byte Array' },
-  { value: 'STRING', displayValue: 'String' },
-  { value: 'SHORT', displayValue: 'Short' },
-  { value: 'DOUBLE', displayValue: 'Double' },
-  { value: 'INTEGER', displayValue: 'Integer' },
-  { value: 'LONG', displayValue: 'Long' },
-  { value: 'DATE', displayValue: 'Date' },
-  { value: 'DATETIME', displayValue: 'Date & time' },
-  { value: 'JSON', displayValue: 'JSON' },
-  { value: 'XML', displayValue: 'XML' }
-];
-
 function getContainer(node) {
   return domQuery('div[data-list-entry-container]', node);
 }
 
-function createInputRowTemplate(properties, canRemove) {
-  var template = TABLE_ROW_DIV_SNIPPET;
-  template += createInputTemplate(properties, canRemove);
+function createInputRowTemplate(dataTypes, properties, canRemove) {
+  let template = TABLE_ROW_DIV_SNIPPET;
+  template += createInputTemplate(dataTypes, properties, canRemove);
   template += canRemove ? DELETE_ROW_BUTTON_SNIPPET : '';
   template += '</div>';
 
   return template;
 }
 
-function createInputTemplate(properties, canRemove) {
-  var columns = properties.length;
-  var template = '';
+function createInputTemplate(dataTypes, properties, canRemove) {
+  let columns = properties.length;
+  let template = '';
   properties.forEach(function(prop, idx) {
 
     if (prop === 'type') {
@@ -56,9 +40,10 @@ function createInputTemplate(properties, canRemove) {
         'id="camunda-table-row-cell-input-value-' + idx + '" ' +
         'name="' + escapeHTML(prop) + '"' +
         ' data-value>';
-      typeSelectValues.map(option => {
-        template += '<option value="' + escapeHTML(option.value) + '">' +
-          escapeHTML(option.displayValue) +
+      dataTypes.map(option => {
+        template +=
+          '<option value="' + escapeHTML(option.value) + '">' +
+            escapeHTML(option.name) +
           '</option>';
       });
       template += '</select>';
@@ -73,7 +58,7 @@ function createInputTemplate(properties, canRemove) {
   return template;
 }
 
-export default function(translate, group, element, data) {
+export default function(translate, group, element, data, dataTypes) {
 
   // Table
   let modelProperties = ['name', 'value', 'type'];
@@ -86,39 +71,38 @@ export default function(translate, group, element, data) {
       id: 'data',
       labels: ['Name', 'Value', 'Type'],
       modelProperties,
-      addElement: function(element, node) {
-        data.addDataElement(element);
+      addElement: function(el, _node) {
+        data.addDataElement(el);
         return [];
       },
-      getElements: function(element, node) {
-        let dataElements = data.getDataElements(element);
-        if (dataElements.length === 0) {
+      getElements: function(el, _node) {
+        let dataMap = data.getDataElements(el);
+        if (!dataMap || dataMap.length === 0) {
           return [];
         }
         let result = [];
-        let dataMap = dataElements[0];
         for (let value of dataMap.values()) {
           result.push(value);
         }
         return result;
       },
-      updateElement: function(element, value, node, idx) {
-        data.updateDataElement(element, value, idx);
+      updateElement: function(el, value, node, idx) {
+        data.updateDataElement(el, value, idx);
         return [];
       },
-      removeElement: function(element, node, idx) {
-        data.removeDataElement(element, idx);
+      removeElement: function(el, node, idx) {
+        data.removeDataElement(el, idx);
         return [];
       }
 
-      // Validation?
+      // TODO: Validation
     });
 
     // Need to rewrite addElement and createListEntryTemplate (and, of course createInputRowTemplate, to create data type select)
-    tableEntry.addElement = function(element, node, event, scopeNode) {
-      var template = domify(createInputRowTemplate(modelProperties, canRemove));
+    tableEntry.addElement = function(el, node, _event, _scopeNode) {
+      let template = domify(createInputRowTemplate(dataTypes, modelProperties, canRemove));
 
-      var container = getContainer(node);
+      let container = getContainer(node);
       container.appendChild(template);
 
       this.__action = {
@@ -127,8 +111,8 @@ export default function(translate, group, element, data) {
 
       return true;
     };
-    tableEntry.createListEntryTemplate = function(value, index, selectBox) {
-      return createInputRowTemplate(modelProperties, canRemove);
+    tableEntry.createListEntryTemplate = function() {
+      return createInputRowTemplate(dataTypes, modelProperties, canRemove);
     };
 
     group.entries.push(tableEntry);

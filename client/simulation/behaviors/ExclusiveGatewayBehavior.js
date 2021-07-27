@@ -1,31 +1,12 @@
 import { filterSequenceFlows } from 'bpmn-js-token-simulation/lib/simulator/behaviors/ModelUtil';
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
-import { RUN_CODE_EVALUATION_EVENT } from '../events/EventHelper';
+import { expressionPattern, isExpressionPattern } from '../script-runner/ScriptRunner';
 
-const isExpressionPattern = /^\${(.+?)}$/;
-const expressionPattern = /\${(.+?)}/;
-
-export default function ExclusiveGatewayBehavior(simulator, eventBus, exclusiveGatewayBehavior, dataNotifications) {
+export default function ExclusiveGatewayBehavior(simulator, scriptRunner, exclusiveGatewayBehavior, dataNotifications) {
   this._simulator = simulator;
-  this._eventBus = eventBus;
+  this._scriptRunner = scriptRunner;
   this._exclusiveGatewayBehavior = exclusiveGatewayBehavior;
   this._dataNotifications = dataNotifications;
-
-  this.runScript = async (code, data, outgoing, ctx) => {
-
-    const fireScriptRun = async (c, d) => {
-      return this._eventBus.fire(RUN_CODE_EVALUATION_EVENT, c, Array.from(d.values()));
-    };
-
-    return fireScriptRun(code, data).then(results => {
-      let newResults = { ...results, outgoing, context: ctx };
-      if (newResults.error) {
-        return Promise.reject(newResults);
-      } else {
-        return Promise.resolve(newResults);
-      }
-    });
-  };
 
   simulator.registerBehavior('bpmn:ExclusiveGateway', this);
 }
@@ -45,6 +26,8 @@ ExclusiveGatewayBehavior.prototype.sortSequenceFlows = function(element, default
 
     if (first.id === defaultFlow) {
       return 1;
+    } else if (second.id === defaultFlow) {
+      return -1;
     }
     if (firstId < secondId) {
       return -1;
@@ -94,7 +77,7 @@ ExclusiveGatewayBehavior.prototype.enter = function(context) {
         }
 
         // Script
-        promises.push(this.runScript(code, scope.data, outgoing, context));
+        promises.push(this._scriptRunner.runScript(code, scope.data, { outgoing, context }));
       } else if (outgoing.id === defaultFlow) {
         promises.push(Promise.resolve({ output: 'true', outgoing, context }));
       } else {
@@ -108,31 +91,35 @@ ExclusiveGatewayBehavior.prototype.enter = function(context) {
       return true;
     });
 
-    Promise.all(promises).then(executions => {
-      executions.every(execution => {
-        if (execution.output &&
-          execution.output === 'true') {
-          this._simulator.setConfig(execution.context.element, { activeOutgoing: execution.outgoing });
-          this._exclusiveGatewayBehavior.enter(execution.context);
-          return false;
-        }
-        return true;
-      });
-    }).catch(error => {
-      this._dataNotifications.addElementNotification(context.element, {
-        type: 'error',
-        icon: 'fa-exclamation-triangle',
-        text: error.error
-      });
-    });
+    this.evaluatePromises(promises);
 
   } else {
     this._exclusiveGatewayBehavior.enter(context);
   }
 };
 
+ExclusiveGatewayBehavior.prototype.evaluatePromises = function(promises) {
+  Promise.all(promises).then(executions => {
+    executions.every(execution => {
+      if (execution.output &&
+        execution.output === 'true') {
+        this._simulator.setConfig(execution.context.element, { activeOutgoing: execution.outgoing });
+        this._exclusiveGatewayBehavior.enter(execution.context);
+        return false;
+      }
+      return true;
+    });
+  }).catch(error => {
+    this._dataNotifications.addElementNotification(context.element, {
+      type: 'error',
+      icon: 'fa-exclamation-triangle',
+      text: error.error
+    });
+  });
+};
+
 ExclusiveGatewayBehavior.prototype.exit = function(context) {
   return this._exclusiveGatewayBehavior.exit(context);
 };
 
-ExclusiveGatewayBehavior.$inject = ['simulator', 'eventBus', 'exclusiveGatewayBehavior', 'dataNotifications'];
+ExclusiveGatewayBehavior.$inject = ['simulator', 'scriptRunner', 'exclusiveGatewayBehavior', 'dataNotifications'];

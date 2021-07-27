@@ -1,8 +1,11 @@
-import DataNotifications from './DataNotifications';
-import ExclusiveGatewayBehavior from './ExclusiveGatewayBehavior';
+import DataNotificationsModule from './data-notifications';
+import BehaviorsModule from './behaviors';
+import ScriptRunnerModule from './script-runner';
 
 export default {
-  __init__: ['dataNotifications', 'dataExclusiveGatewayBehavior'],
-  dataNotifications: ['type', DataNotifications],
-  dataExclusiveGatewayBehavior: ['type', ExclusiveGatewayBehavior]
+  __depends__: [
+    BehaviorsModule,
+    ScriptRunnerModule,
+    DataNotificationsModule
+  ]
 };
