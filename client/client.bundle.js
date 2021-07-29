@@ -104,9 +104,9 @@ class Data {
       if (initiator && initiator.type === 'bpmn:MessageFlow') {
         // We need to pass the scope from the "source" process to the "target" process
         const { source, target } = element;
-        let sDataObject = this.getSimulationData(this.#getProcessOrParticipantElement(source)) || this.getDataElements(this.#getProcessOrParticipantElement(source)) || [];
+        let sDataObject = this.getDataElementSimulation(this.#getProcessOrParticipantElement(source)) || this.getDataElements(this.#getProcessOrParticipantElement(source)) || [];
         let processOrParticipantElement = this.#getProcessOrParticipantElement(target);
-        let tDataObject = this.getSimulationData(processOrParticipantElement) || this.getDataElements(processOrParticipantElement) || [];
+        let tDataObject = this.getDataElementSimulation(processOrParticipantElement) || this.getDataElements(processOrParticipantElement) || [];
         scope.data = new Map([...sDataObject, ...tDataObject]);
 
         let oldData = this._data.find(dataObject => dataObject.element.id === processOrParticipantElement.id);
@@ -117,7 +117,7 @@ class Data {
         }
       } else {
         let processOrParticipantElement = this.#getProcessOrParticipantElement(element);
-        let dataObject = this.getSimulationData(processOrParticipantElement) || this.getDataElements(processOrParticipantElement) || [];
+        let dataObject = this.getDataElementSimulation(processOrParticipantElement) || this.getDataElements(processOrParticipantElement) || [];
         scope.data = new Map([...dataObject]);
 
         let oldData = this._data.find(obj => obj.element.id === processOrParticipantElement.id);
@@ -205,7 +205,7 @@ class Data {
     }
   }
 
-  getSimulationData(element) {
+  getDataElementSimulation(element) {
     let elem = this.#getProcessOrParticipantElement(element);
     if (elem) {
       return this.getDataObject(elem)?.simulation;
@@ -214,7 +214,7 @@ class Data {
     }
   }
 
-  addSimulationData(element, value) {
+  addDataElementSimulation(element, value) {
     let elem = this.#getProcessOrParticipantElement(element);
     let dataObject = this.getDataObject(elem);
     if (!dataObject.simulation) {
@@ -244,9 +244,84 @@ class Data {
     map.delete(keyMap);
   }
 
+  getDataSimulation() {
+    return this._data.map(data => {
+      let obj = {};
+      obj[data.element.id] = data.simulation;
+      return obj;
+    });
+  }
+
 }
 
 Data.$inject = ['eventBus'];
+
+/***/ }),
+
+/***/ "./client/data/DataPanel.js":
+/*!**********************************!*\
+  !*** ./client/data/DataPanel.js ***!
+  \**********************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ DataPanel)
+/* harmony export */ });
+/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! min-dom */ "./node_modules/min-dom/dist/index.esm.js");
+/* harmony import */ var _bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../bpmn-js-token-simulation/lib/util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+
+
+
+function DataPanel(eventBus, canvas, dataTokenSimulation) {
+  this._eventBus = eventBus;
+  this._canvas = canvas;
+  this._dataTokenSimulation = dataTokenSimulation;
+
+  this._eventBus.on('import.done', () => this._init());
+
+  this._eventBus.on(_bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_MODE_EVENT, context => {
+    let active = context.active;
+
+    let dataPanel = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.query)('.data-panel');
+    if (active) {
+      (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.classes)(dataPanel).remove('hidden');
+    } else {
+      (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.classes)(dataPanel).add('hidden');
+    }
+  });
+
+  this._eventBus.on(_bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SCOPE_DESTROYED_EVENT, () => {
+    let data = this._dataTokenSimulation.getDataSimulation();
+    this.container.textContent = '';
+
+    data.forEach((element) => {
+      let section = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)('<div></div>');
+      for (const [id, simulationData] of Object.entries(element)) {
+        let parent = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(`<h4 class="participant">${id}</h4>`);
+        section.appendChild(parent);
+        if (simulationData) {
+          for (const [key, variable] of simulationData.entries()) {
+            let row = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(`<p class="variable"><strong>${key}</strong>&nbsp;&nbsp;:&nbsp;&nbsp;${variable.value}</p>`);
+            section.append(row);
+          }
+        }
+      }
+      this.container.appendChild(section);
+    });
+  });
+}
+
+DataPanel.prototype._init = function() {
+  this.panel = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)('<div class="data-panel hidden"><h5>Data Simulation</h5></div>');
+  this.container = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)('<div class="data-properties"></div>');
+
+  this.panel.appendChild(this.container);
+  this._canvas.getContainer().appendChild(this.panel);
+};
+
+DataPanel.$inject = ['eventBus', 'canvas', 'dataTokenSimulation'];
 
 /***/ }),
 
@@ -262,13 +337,17 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
 /* harmony import */ var _Data__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./Data */ "./client/data/Data.js");
+/* harmony import */ var _DataPanel__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./DataPanel */ "./client/data/DataPanel.js");
+
 
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
   __init__: [
-    'dataTokenSimulation'
+    'dataTokenSimulation',
+    'dataPanel'
   ],
-  dataTokenSimulation: ['type', _Data__WEBPACK_IMPORTED_MODULE_0__.default]
+  dataTokenSimulation: ['type', _Data__WEBPACK_IMPORTED_MODULE_0__.default],
+  dataPanel: ['type', _DataPanel__WEBPACK_IMPORTED_MODULE_1__.default]
 });
 
 /***/ }),
@@ -786,7 +865,7 @@ ScriptTaskBehavior.prototype.enter = function(context) {
 
     this._scriptRunner.runScript(bo.script, scope.data)
       .then(results => {
-        this._dataTokenSimulation.addSimulationData(element, {
+        this._dataTokenSimulation.addDataElementSimulation(element, {
           name: bo.resultVariable,
           value: results.output,
           type: resultVariableType

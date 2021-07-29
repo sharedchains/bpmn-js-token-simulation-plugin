@@ -1,8 +1,11 @@
 import DataModule from './Data';
+import DataPanelModule from './DataPanel';
 
 export default {
   __init__: [
-    'dataTokenSimulation'
+    'dataTokenSimulation',
+    'dataPanel'
   ],
-  dataTokenSimulation: ['type', DataModule]
+  dataTokenSimulation: ['type', DataModule],
+  dataPanel: ['type', DataPanelModule]
 };

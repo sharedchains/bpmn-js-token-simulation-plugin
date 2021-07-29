@@ -30,9 +30,9 @@ export default class Data {
       if (initiator && initiator.type === 'bpmn:MessageFlow') {
         // We need to pass the scope from the "source" process to the "target" process
         const { source, target } = element;
-        let sDataObject = this.getSimulationData(this.#getProcessOrParticipantElement(source)) || this.getDataElements(this.#getProcessOrParticipantElement(source)) || [];
+        let sDataObject = this.getDataElementSimulation(this.#getProcessOrParticipantElement(source)) || this.getDataElements(this.#getProcessOrParticipantElement(source)) || [];
         let processOrParticipantElement = this.#getProcessOrParticipantElement(target);
-        let tDataObject = this.getSimulationData(processOrParticipantElement) || this.getDataElements(processOrParticipantElement) || [];
+        let tDataObject = this.getDataElementSimulation(processOrParticipantElement) || this.getDataElements(processOrParticipantElement) || [];
         scope.data = new Map([...sDataObject, ...tDataObject]);
 
         let oldData = this._data.find(dataObject => dataObject.element.id === processOrParticipantElement.id);
@@ -43,7 +43,7 @@ export default class Data {
         }
       } else {
         let processOrParticipantElement = this.#getProcessOrParticipantElement(element);
-        let dataObject = this.getSimulationData(processOrParticipantElement) || this.getDataElements(processOrParticipantElement) || [];
+        let dataObject = this.getDataElementSimulation(processOrParticipantElement) || this.getDataElements(processOrParticipantElement) || [];
         scope.data = new Map([...dataObject]);
 
         let oldData = this._data.find(obj => obj.element.id === processOrParticipantElement.id);
@@ -131,7 +131,7 @@ export default class Data {
     }
   }
 
-  getSimulationData(element) {
+  getDataElementSimulation(element) {
     let elem = this.#getProcessOrParticipantElement(element);
     if (elem) {
       return this.getDataObject(elem)?.simulation;
@@ -140,7 +140,7 @@ export default class Data {
     }
   }
 
-  addSimulationData(element, value) {
+  addDataElementSimulation(element, value) {
     let elem = this.#getProcessOrParticipantElement(element);
     let dataObject = this.getDataObject(elem);
     if (!dataObject.simulation) {
@@ -168,6 +168,14 @@ export default class Data {
     }
     let keyMap = Array.from(map.keys())[index];
     map.delete(keyMap);
+  }
+
+  getDataSimulation() {
+    return this._data.map(data => {
+      let obj = {};
+      obj[data.element.id] = data.simulation;
+      return obj;
+    });
   }
 
 }

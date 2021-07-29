@@ -78,7 +78,7 @@ ScriptTaskBehavior.prototype.enter = function(context) {
 
     this._scriptRunner.runScript(bo.script, scope.data)
       .then(results => {
-        this._dataTokenSimulation.addSimulationData(element, {
+        this._dataTokenSimulation.addDataElementSimulation(element, {
           name: bo.resultVariable,
           value: results.output,
           type: resultVariableType
