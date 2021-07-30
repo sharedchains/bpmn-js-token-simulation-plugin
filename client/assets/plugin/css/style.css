@@ -7,10 +7,12 @@
 .bpp-table-row select.bpp-table-row-columns-1 {
     width: 100%;
 }
+
 .bpp-table-row select.bpp-table-row-columns-2 {
     width: 50%;
     box-sizing: border-box;
 }
+
 .bpp-table-row select.bpp-table-row-columns-3 {
     width: 33%;
     box-sizing: border-box;
@@ -19,9 +21,11 @@
 .bpp-table-row select.bpp-table-row-columns-1.bpp-table-row-removable {
     width: calc(100% - 24px);
 }
+
 .bpp-table-row select.bpp-table-row-columns-2.bpp-table-row-removable {
     width: calc(50% - 12px);
 }
+
 .bpp-table-row select.bpp-table-row-columns-3.bpp-table-row-removable {
     width: calc(33% - 8px);
 }
@@ -29,6 +33,7 @@
 .bpp-table-row select.bpp-table-row-columns-2:nth-child(2) {
     border-left: none;
 }
+
 .bpp-table-row select.bpp-table-row-columns-3:not(:first-child) {
     border-left: none;
 }
@@ -86,12 +91,6 @@
     flex-direction: column;
     overflow: hidden;
     overflow-y: auto;
-
-    font-family: monospace;
-}
-
-.data-panel h5 {
-    margin: 2px;
 }
 
 .data-panel.hidden {
@@ -99,10 +98,29 @@
 }
 
 .data-panel > * {
-    padding: 3px;
 }
 
-.data-panel .data-properties .participant {}
+.data-panel .data-properties .participant {
+    margin: 2px;
+}
+
+.data-panel .data-properties .section {
+    border: 1px solid black;
+    margin: 10px 0 10px 0;
+    padding: 5px 2px 5px 2px;
+}
+
+.data-panel .data-properties .sectionTitle {
+    display: flex;
+}
+
+.data-panel .data-properties .token {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    margin: 0 20px 0 20px;
+}
+
 .data-panel .data-properties .variable {
     display: flex;
     padding-left: 20px;

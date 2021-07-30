@@ -87,7 +87,10 @@ class Data {
     });
 
     eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_2__.RESET_SIMULATION_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.LOW_PRIORITY, () => {
-      this._data.forEach(dataObject => dataObject.simulation = undefined);
+      this._data.forEach(dataObject => {
+        dataObject.simulation = undefined;
+        dataObject.colors = undefined;
+      });
     });
 
     eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_2__.SCOPE_CREATE_EVENT, event => {
@@ -123,6 +126,7 @@ class Data {
         let oldData = this._data.find(obj => obj.element.id === processOrParticipantElement.id);
         if (oldData) {
           oldData.simulation = new Map([...scope.data]);
+          oldData.colors = scope.colors;
         }
       }
 
@@ -247,7 +251,14 @@ class Data {
   getDataSimulation() {
     return this._data.map(data => {
       let obj = {};
-      obj[data.element.id] = data.simulation;
+      const colors = data.colors || {
+        primary: '#999',
+        auxiliary: '#999'
+      };
+      obj[data.element.id] = {
+        colors: colors,
+        simulation: data.simulation
+      };
       return obj;
     });
   }
@@ -269,8 +280,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (/* binding */ DataPanel)
 /* harmony export */ });
-/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! min-dom */ "./node_modules/min-dom/dist/index.esm.js");
-/* harmony import */ var _bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../bpmn-js-token-simulation/lib/util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! min-dom */ "./node_modules/min-dom/dist/index.esm.js");
+/* harmony import */ var _bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../bpmn-js-token-simulation/lib/util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../events/EventHelper */ "./client/events/EventHelper.js");
+
 
 
 
@@ -281,29 +294,41 @@ function DataPanel(eventBus, canvas, dataTokenSimulation) {
 
   this._eventBus.on('import.done', () => this._init());
 
-  this._eventBus.on(_bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_MODE_EVENT, context => {
+  this._eventBus.on(_bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_MODE_EVENT, context => {
     let active = context.active;
 
-    let dataPanel = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.query)('.data-panel');
+    let dataPanel = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.query)('.data-panel');
     if (active) {
-      (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.classes)(dataPanel).remove('hidden');
+      (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(dataPanel).remove('hidden');
     } else {
-      (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.classes)(dataPanel).add('hidden');
+      (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(dataPanel).add('hidden');
     }
   });
 
-  this._eventBus.on(_bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SCOPE_DESTROYED_EVENT, () => {
+  this._eventBus.on(_bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.RESET_SIMULATION_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
+    let dataProperties = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.query)('.data-properties');
+    dataProperties.textContent = '';
+  });
+
+  this._eventBus.on(_bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.SCOPE_DESTROYED_EVENT, () => {
     let data = this._dataTokenSimulation.getDataSimulation();
     this.container.textContent = '';
 
     data.forEach((element) => {
-      let section = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)('<div></div>');
+      let section = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(`<div class="section"></div>`);
       for (const [id, simulationData] of Object.entries(element)) {
-        let parent = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(`<h4 class="participant">${id}</h4>`);
-        section.appendChild(parent);
-        if (simulationData) {
-          for (const [key, variable] of simulationData.entries()) {
-            let row = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(`<p class="variable"><strong>${key}</strong>&nbsp;&nbsp;:&nbsp;&nbsp;${variable.value}</p>`);
+        let title = `<div class="sectionTitle">
+            <div class="token" style="background-color: ${simulationData.simulation && simulationData.simulation.size? simulationData.colors.primary : '#999'}"></div>
+            <h4 class="participant">${id}</h4>
+        </div>`;
+        if (simulationData.simulation && simulationData.simulation.size) {
+          section.style.borderColor = String(simulationData.colors.primary);
+        }
+        let domTitle = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(title);
+        section.appendChild(domTitle);
+        if (simulationData.simulation) {
+          for (const [key, variable] of simulationData.simulation.entries()) {
+            let row = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(`<p class="variable"><strong>${key}</strong>&nbsp;&nbsp;:&nbsp;&nbsp;${variable.value}</p>`);
             section.append(row);
           }
         }
@@ -314,8 +339,8 @@ function DataPanel(eventBus, canvas, dataTokenSimulation) {
 }
 
 DataPanel.prototype._init = function() {
-  this.panel = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)('<div class="data-panel hidden"><h5>Data Simulation</h5></div>');
-  this.container = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)('<div class="data-properties"></div>');
+  this.panel = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)('<div class="data-panel hidden"><h5>Data Simulation</h5></div>');
+  this.container = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)('<div class="data-properties"></div>');
 
   this.panel.appendChild(this.container);
   this._canvas.getContainer().appendChild(this.panel);

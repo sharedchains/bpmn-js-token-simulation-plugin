@@ -13,7 +13,10 @@ export default class Data {
     });
 
     eventBus.on(RESET_SIMULATION_EVENT, LOW_PRIORITY, () => {
-      this._data.forEach(dataObject => dataObject.simulation = undefined);
+      this._data.forEach(dataObject => {
+        dataObject.simulation = undefined;
+        dataObject.colors = undefined;
+      });
     });
 
     eventBus.on(SCOPE_CREATE_EVENT, event => {
@@ -49,6 +52,7 @@ export default class Data {
         let oldData = this._data.find(obj => obj.element.id === processOrParticipantElement.id);
         if (oldData) {
           oldData.simulation = new Map([...scope.data]);
+          oldData.colors = scope.colors;
         }
       }
 
@@ -173,7 +177,14 @@ export default class Data {
   getDataSimulation() {
     return this._data.map(data => {
       let obj = {};
-      obj[data.element.id] = data.simulation;
+      const colors = data.colors || {
+        primary: '#999',
+        auxiliary: '#999'
+      };
+      obj[data.element.id] = {
+        colors: colors,
+        simulation: data.simulation
+      };
       return obj;
     });
   }
