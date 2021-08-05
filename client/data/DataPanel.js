@@ -1,17 +1,31 @@
-import { classes as domClasses, domify, query as domQuery } from 'min-dom';
+import {
+  classes as domClasses,
+  delegate as domDelegate,
+  domify,
+  event as domEvent,
+  query as domQuery,
+  queryAll as domQueryAll
+} from 'min-dom';
+
 import {
   RESET_SIMULATION_EVENT,
   SCOPE_DESTROYED_EVENT,
   TOGGLE_MODE_EVENT
-} from '../../../bpmn-js-token-simulation/lib/util/EventHelper';
-import { LOW_PRIORITY } from '../events/EventHelper';
+} from 'bpmn-js-token-simulation/lib/util/EventHelper';
+
+import {
+  LOW_PRIORITY,
+  SET_DATA_EDITABLE_EVENT,
+  SET_DATA_NOT_EDITABLE_EVENT,
+  UPDATED_DATA_EVENT
+} from '../events/EventHelper';
 
 export default function DataPanel(eventBus, canvas, dataTokenSimulation) {
   this._eventBus = eventBus;
   this._canvas = canvas;
   this._dataTokenSimulation = dataTokenSimulation;
 
-  this._eventBus.on('import.done', () => this._init());
+  this.editing = false;
 
   this._eventBus.on(TOGGLE_MODE_EVENT, context => {
     let active = context.active;
@@ -24,20 +38,44 @@ export default function DataPanel(eventBus, canvas, dataTokenSimulation) {
     }
   });
 
+  this._eventBus.on('import.done', () => this._init());
+
+  this._eventBus.on(SET_DATA_NOT_EDITABLE_EVENT, () => {
+    this.editing = false;
+  });
+
+  this._eventBus.on(SET_DATA_EDITABLE_EVENT, () => {
+    let dataVariables = domQueryAll('.variable-value');
+    let dataVariableInputs = domQueryAll('.variable-value-input');
+
+    if (dataVariables.length > 0 && dataVariableInputs.length > 0) {
+      this.editing = true;
+
+      for (const variable of dataVariables.values()) {
+        if (!domClasses(variable).has('hidden')) {
+          domClasses(variable).add('hidden');
+        }
+      }
+      for (const variable of dataVariableInputs.values()) {
+        domClasses(variable).remove('hidden');
+      }
+    }
+  });
+
   this._eventBus.on(RESET_SIMULATION_EVENT, LOW_PRIORITY, () => {
     let dataProperties = domQuery('.data-properties');
     dataProperties.textContent = '';
   });
 
-  this._eventBus.on(SCOPE_DESTROYED_EVENT, () => {
+  this._eventBus.on(SCOPE_DESTROYED_EVENT, LOW_PRIORITY, () => {
     let data = this._dataTokenSimulation.getDataSimulation();
     this.container.textContent = '';
 
-    data.forEach((element) => {
+    data.forEach((simObject) => {
       let section = domify(`<div class="section"></div>`);
-      for (const [id, simulationData] of Object.entries(element)) {
+      for (const [id, simulationData] of Object.entries(simObject)) {
         let title = `<div class="sectionTitle">
-            <div class="token" style="background-color: ${simulationData.simulation && simulationData.simulation.size? simulationData.colors.primary : '#999'}"></div>
+            <div class="token" style="background-color: ${simulationData.simulation && simulationData.simulation.size ? simulationData.colors.primary : '#999'}"></div>
             <h4 class="participant">${id}</h4>
         </div>`;
         if (simulationData.simulation && simulationData.simulation.size) {
@@ -47,7 +85,20 @@ export default function DataPanel(eventBus, canvas, dataTokenSimulation) {
         section.appendChild(domTitle);
         if (simulationData.simulation) {
           for (const [key, variable] of simulationData.simulation.entries()) {
-            let row = domify(`<p class="variable"><strong>${key}</strong>&nbsp;&nbsp;:&nbsp;&nbsp;${variable.value}</p>`);
+            let row = domify(`<p class="variable">
+                                        <strong>${key}</strong>
+                                        &nbsp;&nbsp;:&nbsp;&nbsp;
+                                        <span class="variable-value ${this.editing ? 'hidden' : ''}">${variable.value}</span>
+                                        <input type="text" class="variable-value-input ${this.editing ? '' : 'hidden'}" value="${variable.value}" />
+                                        </p>`);
+            domDelegate.bind(row, '.variable-value-input', 'change', event => {
+              let newVariable = Object.assign({}, variable, { value: event.target.value });
+              this._dataTokenSimulation.updateDataElementSimulation(id, newVariable);
+              this._eventBus.fire(UPDATED_DATA_EVENT, {
+                participantId: key,
+                variable: newVariable
+              });
+            });
             section.append(row);
           }
         }
@@ -63,6 +114,13 @@ DataPanel.prototype._init = function() {
 
   this.panel.appendChild(this.container);
   this._canvas.getContainer().appendChild(this.panel);
+
+  domEvent.bind(this.panel, 'wheel', event => {
+    event.stopPropagation();
+  });
+  domEvent.bind(this.panel, 'mousedown', event => {
+    event.stopPropagation();
+  });
 };
 
 DataPanel.$inject = ['eventBus', 'canvas', 'dataTokenSimulation'];

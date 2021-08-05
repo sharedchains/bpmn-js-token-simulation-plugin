@@ -44,7 +44,8 @@ ExclusiveGatewayBehavior.prototype.sortSequenceFlows = function(element, default
 ExclusiveGatewayBehavior.prototype.enter = function(context) {
   const { element, scope } = context;
 
-  if (scope.data && scope.data.size) {
+  // TODO: base logic to "toggle data handling"
+  if (scope.data?.size) {
 
     let bo = getBusinessObject(element);
     const defaultFlow = bo.default?.id;

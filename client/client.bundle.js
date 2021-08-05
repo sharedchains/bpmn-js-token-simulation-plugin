@@ -110,23 +110,26 @@ class Data {
         let sDataObject = this.getDataElementSimulation(this.#getProcessOrParticipantElement(source)) || this.getDataElements(this.#getProcessOrParticipantElement(source)) || [];
         let processOrParticipantElement = this.#getProcessOrParticipantElement(target);
         let tDataObject = this.getDataElementSimulation(processOrParticipantElement) || this.getDataElements(processOrParticipantElement) || [];
-        scope.data = new Map([...sDataObject, ...tDataObject]);
+        scope.data = this.#destructureMaps(new Map([...sDataObject, ...tDataObject]));
 
         let oldData = this._data.find(dataObject => dataObject.element.id === processOrParticipantElement.id);
         if (oldData) {
-          oldData.simulation = new Map([...scope.data]);
+
+          oldData.simulation = this.#destructureMaps(scope.data);
         } else {
-          this.setDataSimulationMap(processOrParticipantElement, new Map([...scope.data]));
+          this.setDataSimulationMap(processOrParticipantElement, this.#destructureMaps(scope.data));
         }
       } else {
         let processOrParticipantElement = this.#getProcessOrParticipantElement(element);
         let dataObject = this.getDataElementSimulation(processOrParticipantElement) || this.getDataElements(processOrParticipantElement) || [];
-        scope.data = new Map([...dataObject]);
+        scope.data = this.#destructureMaps(dataObject);
 
         let oldData = this._data.find(obj => obj.element.id === processOrParticipantElement.id);
         if (oldData) {
-          oldData.simulation = new Map([...scope.data]);
+          oldData.simulation = this.#destructureMaps(scope.data);
           oldData.colors = scope.colors;
+        } else {
+          this.setDataSimulationMap(processOrParticipantElement, this.#destructureMaps(scope.data));
         }
       }
 
@@ -148,6 +151,16 @@ class Data {
 
   getResultVariableType(element, resultVariable) {
     return this.getDataObject(this.#getProcessOrParticipantElement(element))?.resultVariables[resultVariable];
+  }
+
+  #destructureMaps(...maps) {
+    let newMap = new Map();
+    maps.forEach(map => {
+      for (const [key, value] of map.entries()) {
+        newMap.set(key, {...value});
+      }
+    });
+    return newMap;
   }
 
   #getProcessOrParticipantElement(element) {
@@ -224,7 +237,12 @@ class Data {
     if (!dataObject.simulation) {
       dataObject.simulation = new Map([...dataObject.data]);
     }
-    dataObject.simulation.set(value['name'], value);
+    dataObject.simulation.set(value['name'], { ...value });
+  }
+
+  updateDataElementSimulation(idParticipant, value) {
+    let dataObject = this._data.find(obj => obj.element.id === idParticipant);
+    dataObject.simulation.set(value['name'], { ...value });
   }
 
   updateDataElement(element, value, index) {
@@ -235,7 +253,7 @@ class Data {
     }
     let keyMap = Array.from(map.keys())[index];
     map.delete(keyMap);
-    map.set(value['name'], value);
+    map.set(value['name'], { ...value });
   }
 
   removeDataElement(element, index) {
@@ -255,9 +273,10 @@ class Data {
         primary: '#999',
         auxiliary: '#999'
       };
+      let newMap = data.simulation? new Map([...data.simulation]) : new Map();
       obj[data.element.id] = {
         colors: colors,
-        simulation: data.simulation
+        simulation: newMap
       };
       return obj;
     });
@@ -281,8 +300,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "default": () => (/* binding */ DataPanel)
 /* harmony export */ });
 /* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! min-dom */ "./node_modules/min-dom/dist/index.esm.js");
-/* harmony import */ var _bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../bpmn-js-token-simulation/lib/util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
 /* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../events/EventHelper */ "./client/events/EventHelper.js");
+
+
 
 
 
@@ -292,9 +313,9 @@ function DataPanel(eventBus, canvas, dataTokenSimulation) {
   this._canvas = canvas;
   this._dataTokenSimulation = dataTokenSimulation;
 
-  this._eventBus.on('import.done', () => this._init());
+  this.editing = false;
 
-  this._eventBus.on(_bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_MODE_EVENT, context => {
+  this._eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_MODE_EVENT, context => {
     let active = context.active;
 
     let dataPanel = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.query)('.data-panel');
@@ -305,20 +326,44 @@ function DataPanel(eventBus, canvas, dataTokenSimulation) {
     }
   });
 
-  this._eventBus.on(_bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.RESET_SIMULATION_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
+  this._eventBus.on('import.done', () => this._init());
+
+  this._eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_NOT_EDITABLE_EVENT, () => {
+    this.editing = false;
+  });
+
+  this._eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_EDITABLE_EVENT, () => {
+    let dataVariables = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.queryAll)('.variable-value');
+    let dataVariableInputs = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.queryAll)('.variable-value-input');
+
+    if (dataVariables.length > 0 && dataVariableInputs.length > 0) {
+      this.editing = true;
+
+      for (const variable of dataVariables.values()) {
+        if (!(0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(variable).has('hidden')) {
+          (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(variable).add('hidden');
+        }
+      }
+      for (const variable of dataVariableInputs.values()) {
+        (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(variable).remove('hidden');
+      }
+    }
+  });
+
+  this._eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.RESET_SIMULATION_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
     let dataProperties = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.query)('.data-properties');
     dataProperties.textContent = '';
   });
 
-  this._eventBus.on(_bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.SCOPE_DESTROYED_EVENT, () => {
+  this._eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.SCOPE_DESTROYED_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
     let data = this._dataTokenSimulation.getDataSimulation();
     this.container.textContent = '';
 
-    data.forEach((element) => {
+    data.forEach((simObject) => {
       let section = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(`<div class="section"></div>`);
-      for (const [id, simulationData] of Object.entries(element)) {
+      for (const [id, simulationData] of Object.entries(simObject)) {
         let title = `<div class="sectionTitle">
-            <div class="token" style="background-color: ${simulationData.simulation && simulationData.simulation.size? simulationData.colors.primary : '#999'}"></div>
+            <div class="token" style="background-color: ${simulationData.simulation && simulationData.simulation.size ? simulationData.colors.primary : '#999'}"></div>
             <h4 class="participant">${id}</h4>
         </div>`;
         if (simulationData.simulation && simulationData.simulation.size) {
@@ -328,7 +373,20 @@ function DataPanel(eventBus, canvas, dataTokenSimulation) {
         section.appendChild(domTitle);
         if (simulationData.simulation) {
           for (const [key, variable] of simulationData.simulation.entries()) {
-            let row = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(`<p class="variable"><strong>${key}</strong>&nbsp;&nbsp;:&nbsp;&nbsp;${variable.value}</p>`);
+            let row = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(`<p class="variable">
+                                        <strong>${key}</strong>
+                                        &nbsp;&nbsp;:&nbsp;&nbsp;
+                                        <span class="variable-value ${this.editing ? 'hidden' : ''}">${variable.value}</span>
+                                        <input type="text" class="variable-value-input ${this.editing ? '' : 'hidden'}" value="${variable.value}" />
+                                        </p>`);
+            min_dom__WEBPACK_IMPORTED_MODULE_2__.delegate.bind(row, '.variable-value-input', 'change', event => {
+              let newVariable = Object.assign({}, variable, { value: event.target.value });
+              this._dataTokenSimulation.updateDataElementSimulation(id, newVariable);
+              this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.UPDATED_DATA_EVENT, {
+                participantId: key,
+                variable: newVariable
+              });
+            });
             section.append(row);
           }
         }
@@ -344,6 +402,13 @@ DataPanel.prototype._init = function() {
 
   this.panel.appendChild(this.container);
   this._canvas.getContainer().appendChild(this.panel);
+
+  min_dom__WEBPACK_IMPORTED_MODULE_2__.event.bind(this.panel, 'wheel', event => {
+    event.stopPropagation();
+  });
+  min_dom__WEBPACK_IMPORTED_MODULE_2__.event.bind(this.panel, 'mousedown', event => {
+    event.stopPropagation();
+  });
 };
 
 DataPanel.$inject = ['eventBus', 'canvas', 'dataTokenSimulation'];
@@ -388,6 +453,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "SET_RESULT_VARIABLE_TYPE_EVENT": () => (/* binding */ SET_RESULT_VARIABLE_TYPE_EVENT),
 /* harmony export */   "GET_RESULT_VARIABLE_TYPE_EVENT": () => (/* binding */ GET_RESULT_VARIABLE_TYPE_EVENT),
+/* harmony export */   "SET_DATA_EDITABLE_EVENT": () => (/* binding */ SET_DATA_EDITABLE_EVENT),
+/* harmony export */   "SET_DATA_NOT_EDITABLE_EVENT": () => (/* binding */ SET_DATA_NOT_EDITABLE_EVENT),
+/* harmony export */   "UPDATED_DATA_EVENT": () => (/* binding */ UPDATED_DATA_EVENT),
 /* harmony export */   "CODE_EDITOR_PLUGIN_PRESENT_EVENT": () => (/* binding */ CODE_EDITOR_PLUGIN_PRESENT_EVENT),
 /* harmony export */   "RUN_CODE_EVALUATION_EVENT": () => (/* binding */ RUN_CODE_EVALUATION_EVENT),
 /* harmony export */   "GET_DATA_TYPES_EVENT": () => (/* binding */ GET_DATA_TYPES_EVENT),
@@ -398,6 +466,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 const SET_RESULT_VARIABLE_TYPE_EVENT = 'tokenSimulation.resultVariableType.set';
 const GET_RESULT_VARIABLE_TYPE_EVENT = 'tokenSimulation.resultVariableType.get';
+const SET_DATA_EDITABLE_EVENT = 'tokenSimulation.data.setEditable';
+const SET_DATA_NOT_EDITABLE_EVENT = 'tokenSimulation.data.unsetEditable';
+const UPDATED_DATA_EVENT = 'tokenSimulation.data.update';
+
 const CODE_EDITOR_PLUGIN_PRESENT_EVENT = 'codeEditor.init';
 const RUN_CODE_EVALUATION_EVENT = 'codeEditor.run';
 const GET_DATA_TYPES_EVENT = 'codeEditor.getTypes';
@@ -655,6 +727,71 @@ function createInputTemplate(dataTypes, properties, canRemove) {
 
 /***/ }),
 
+/***/ "./client/simulation/behaviors/ActivityBehavior.js":
+/*!*********************************************************!*\
+  !*** ./client/simulation/behaviors/ActivityBehavior.js ***!
+  \*********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ ActivityBehavior)
+/* harmony export */ });
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../events/EventHelper */ "./client/events/EventHelper.js");
+
+
+function ActivityBehavior(simulator, eventBus, activityBehavior) {
+  this._simulator = simulator;
+  this._eventBus = eventBus;
+  this._activityBehavior = activityBehavior;
+
+  this.active = false;
+
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
+    this.active = true;
+  });
+
+  const elements = [
+    'bpmn:BusinessRuleTask',
+    'bpmn:CallActivity',
+    'bpmn:ManualTask',
+    'bpmn:SendTask',
+    'bpmn:ServiceTask',
+    'bpmn:Task',
+    'bpmn:UserTask'
+  ];
+
+  for (const element of elements) {
+    simulator.registerBehavior(element, this);
+  }
+}
+
+ActivityBehavior.prototype.signal = function(context) {
+  if (this.active) {
+    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_NOT_EDITABLE_EVENT);
+  }
+  this._activityBehavior.signal(context);
+};
+
+ActivityBehavior.prototype.enter = function(context) {
+  const { element } = context;
+  const { wait } = this._simulator.getConfig(element);
+
+  if (wait && this.active) {
+    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_EDITABLE_EVENT);
+  }
+  this._activityBehavior.enter(context);
+};
+
+ActivityBehavior.prototype.exit = function(context) {
+  this._activityBehavior.exit(context);
+};
+
+ActivityBehavior.$inject = ['simulator', 'eventBus', 'activityBehavior'];
+
+/***/ }),
+
 /***/ "./client/simulation/behaviors/ExclusiveGatewayBehavior.js":
 /*!*****************************************************************!*\
   !*** ./client/simulation/behaviors/ExclusiveGatewayBehavior.js ***!
@@ -715,7 +852,8 @@ ExclusiveGatewayBehavior.prototype.sortSequenceFlows = function(element, default
 ExclusiveGatewayBehavior.prototype.enter = function(context) {
   const { element, scope } = context;
 
-  if (scope.data && scope.data.size) {
+  // TODO: base logic to "toggle data handling"
+  if (scope.data?.size) {
 
     let bo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.getBusinessObject)(element);
     const defaultFlow = bo.default?.id;
@@ -814,12 +952,15 @@ __webpack_require__.r(__webpack_exports__);
 
 
 function ScriptTaskBehavior(simulator, eventBus, activityBehavior, scriptRunner, dataTokenSimulation, dataNotifications) {
+  this._simulator = simulator;
+  this._eventBus = eventBus;
   this._activityBehavior = activityBehavior;
   this._scriptRunner = scriptRunner;
   this._dataTokenSimulation = dataTokenSimulation;
   this._dataNotifications = dataNotifications;
 
   this.active = false;
+  this.dataScopeUpdated = false;
 
   simulator.registerBehavior('bpmn:ScriptTask', this);
 
@@ -827,37 +968,29 @@ function ScriptTaskBehavior(simulator, eventBus, activityBehavior, scriptRunner,
     this.active = true;
   });
 
-
-  // TODO: To remove when we will show data simulation results
-  simulator.on('trace', (event) => {
-    const {
-      scope,
-      action,
-      element
-    } = event;
-
-    if (scope) {
-      const {
-        initiator,
-        data,
-        element: scopeElement
-      } = scope;
-
-      console.log(`${action}ing element ${scopeElement.id} with data ${JSON.stringify([...data], null, 2)}`);
-    }
-
-    console.log(`${action} for element ${element.id}`);
-
-  });
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.UPDATED_DATA_EVENT, () => { this.dataScopeUpdated = true; });
 }
 
 ScriptTaskBehavior.prototype.signal = function(context) {
+
+  if (this.active && this.dataScopeUpdated) {
+    // if data simulation has changed (by user), I need to re-run the script
+    // TODO: I probably need to change scope data :|
+    this.enter(context);
+    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_NOT_EDITABLE_EVENT);
+    this.dataScopeUpdated = false;
+  }
   this._activityBehavior.signal(context);
 };
 
 ScriptTaskBehavior.prototype.enter = function(context) {
+  const { element, scope } = context;
+  const { wait } = this._simulator.getConfig(element);
+
+  if (wait && this.active && !this.dataScopeUpdated) {
+    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_EDITABLE_EVENT);
+  }
   if (this.active) {
-    const { element, scope } = context;
     let bo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_1__.getBusinessObject)(element);
 
     if (bo.scriptFormat !== 'groovy') {
@@ -929,15 +1062,18 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
-/* harmony import */ var _ScriptTaskBehavior__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./ScriptTaskBehavior */ "./client/simulation/behaviors/ScriptTaskBehavior.js");
-/* harmony import */ var _ExclusiveGatewayBehavior__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./ExclusiveGatewayBehavior */ "./client/simulation/behaviors/ExclusiveGatewayBehavior.js");
+/* harmony import */ var _ActivityBehavior__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./ActivityBehavior */ "./client/simulation/behaviors/ActivityBehavior.js");
+/* harmony import */ var _ScriptTaskBehavior__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./ScriptTaskBehavior */ "./client/simulation/behaviors/ScriptTaskBehavior.js");
+/* harmony import */ var _ExclusiveGatewayBehavior__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./ExclusiveGatewayBehavior */ "./client/simulation/behaviors/ExclusiveGatewayBehavior.js");
+
 
 
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
-  __init__: ['dataScriptTaskBehavior', 'dataExclusiveGatewayBehavior'],
-  dataScriptTaskBehavior: ['type', _ScriptTaskBehavior__WEBPACK_IMPORTED_MODULE_0__.default],
-  dataExclusiveGatewayBehavior: ['type', _ExclusiveGatewayBehavior__WEBPACK_IMPORTED_MODULE_1__.default]
+  __init__: ['dataActivityBehavior', 'dataScriptTaskBehavior', 'dataExclusiveGatewayBehavior'],
+  dataActivityBehavior: ['type', _ActivityBehavior__WEBPACK_IMPORTED_MODULE_0__.default],
+  dataScriptTaskBehavior: ['type', _ScriptTaskBehavior__WEBPACK_IMPORTED_MODULE_1__.default],
+  dataExclusiveGatewayBehavior: ['type', _ExclusiveGatewayBehavior__WEBPACK_IMPORTED_MODULE_2__.default]
 });
 
 /***/ }),

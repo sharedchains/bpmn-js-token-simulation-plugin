@@ -36,23 +36,26 @@ export default class Data {
         let sDataObject = this.getDataElementSimulation(this.#getProcessOrParticipantElement(source)) || this.getDataElements(this.#getProcessOrParticipantElement(source)) || [];
         let processOrParticipantElement = this.#getProcessOrParticipantElement(target);
         let tDataObject = this.getDataElementSimulation(processOrParticipantElement) || this.getDataElements(processOrParticipantElement) || [];
-        scope.data = new Map([...sDataObject, ...tDataObject]);
+        scope.data = this.#destructureMaps(new Map([...sDataObject, ...tDataObject]));
 
         let oldData = this._data.find(dataObject => dataObject.element.id === processOrParticipantElement.id);
         if (oldData) {
-          oldData.simulation = new Map([...scope.data]);
+
+          oldData.simulation = this.#destructureMaps(scope.data);
         } else {
-          this.setDataSimulationMap(processOrParticipantElement, new Map([...scope.data]));
+          this.setDataSimulationMap(processOrParticipantElement, this.#destructureMaps(scope.data));
         }
       } else {
         let processOrParticipantElement = this.#getProcessOrParticipantElement(element);
         let dataObject = this.getDataElementSimulation(processOrParticipantElement) || this.getDataElements(processOrParticipantElement) || [];
-        scope.data = new Map([...dataObject]);
+        scope.data = this.#destructureMaps(dataObject);
 
         let oldData = this._data.find(obj => obj.element.id === processOrParticipantElement.id);
         if (oldData) {
-          oldData.simulation = new Map([...scope.data]);
+          oldData.simulation = this.#destructureMaps(scope.data);
           oldData.colors = scope.colors;
+        } else {
+          this.setDataSimulationMap(processOrParticipantElement, this.#destructureMaps(scope.data));
         }
       }
 
@@ -74,6 +77,16 @@ export default class Data {
 
   getResultVariableType(element, resultVariable) {
     return this.getDataObject(this.#getProcessOrParticipantElement(element))?.resultVariables[resultVariable];
+  }
+
+  #destructureMaps(...maps) {
+    let newMap = new Map();
+    maps.forEach(map => {
+      for (const [key, value] of map.entries()) {
+        newMap.set(key, {...value});
+      }
+    });
+    return newMap;
   }
 
   #getProcessOrParticipantElement(element) {
@@ -150,7 +163,12 @@ export default class Data {
     if (!dataObject.simulation) {
       dataObject.simulation = new Map([...dataObject.data]);
     }
-    dataObject.simulation.set(value['name'], value);
+    dataObject.simulation.set(value['name'], { ...value });
+  }
+
+  updateDataElementSimulation(idParticipant, value) {
+    let dataObject = this._data.find(obj => obj.element.id === idParticipant);
+    dataObject.simulation.set(value['name'], { ...value });
   }
 
   updateDataElement(element, value, index) {
@@ -161,7 +179,7 @@ export default class Data {
     }
     let keyMap = Array.from(map.keys())[index];
     map.delete(keyMap);
-    map.set(value['name'], value);
+    map.set(value['name'], { ...value });
   }
 
   removeDataElement(element, index) {
@@ -181,9 +199,10 @@ export default class Data {
         primary: '#999',
         auxiliary: '#999'
       };
+      let newMap = data.simulation? new Map([...data.simulation]) : new Map();
       obj[data.element.id] = {
         colors: colors,
-        simulation: data.simulation
+        simulation: newMap
       };
       return obj;
     });

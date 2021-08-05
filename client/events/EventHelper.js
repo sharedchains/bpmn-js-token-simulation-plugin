@@ -1,5 +1,9 @@
 const SET_RESULT_VARIABLE_TYPE_EVENT = 'tokenSimulation.resultVariableType.set';
 const GET_RESULT_VARIABLE_TYPE_EVENT = 'tokenSimulation.resultVariableType.get';
+const SET_DATA_EDITABLE_EVENT = 'tokenSimulation.data.setEditable';
+const SET_DATA_NOT_EDITABLE_EVENT = 'tokenSimulation.data.unsetEditable';
+const UPDATED_DATA_EVENT = 'tokenSimulation.data.update';
+
 const CODE_EDITOR_PLUGIN_PRESENT_EVENT = 'codeEditor.init';
 const RUN_CODE_EVALUATION_EVENT = 'codeEditor.run';
 const GET_DATA_TYPES_EVENT = 'codeEditor.getTypes';
@@ -12,6 +16,10 @@ const HIGH_PRIORITY = 10000;
 export {
   SET_RESULT_VARIABLE_TYPE_EVENT,
   GET_RESULT_VARIABLE_TYPE_EVENT,
+  SET_DATA_EDITABLE_EVENT,
+  SET_DATA_NOT_EDITABLE_EVENT,
+  UPDATED_DATA_EVENT,
+
   CODE_EDITOR_PLUGIN_PRESENT_EVENT,
   RUN_CODE_EVALUATION_EVENT,
   GET_DATA_TYPES_EVENT,
@@ -20,4 +28,4 @@ export {
   DEFAULT_PRIORITY,
   MID_HIGH_PRIORITY,
   HIGH_PRIORITY
-}
+};

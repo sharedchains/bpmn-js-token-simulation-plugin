@@ -1,13 +1,21 @@
-import { CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY } from '../../events/EventHelper';
+import {
+  CODE_EDITOR_PLUGIN_PRESENT_EVENT,
+  LOW_PRIORITY,
+  SET_DATA_EDITABLE_EVENT, SET_DATA_NOT_EDITABLE_EVENT,
+  UPDATED_DATA_EVENT
+} from '../../events/EventHelper';
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 
 export default function ScriptTaskBehavior(simulator, eventBus, activityBehavior, scriptRunner, dataTokenSimulation, dataNotifications) {
+  this._simulator = simulator;
+  this._eventBus = eventBus;
   this._activityBehavior = activityBehavior;
   this._scriptRunner = scriptRunner;
   this._dataTokenSimulation = dataTokenSimulation;
   this._dataNotifications = dataNotifications;
 
   this.active = false;
+  this.dataScopeUpdated = false;
 
   simulator.registerBehavior('bpmn:ScriptTask', this);
 
@@ -15,37 +23,29 @@ export default function ScriptTaskBehavior(simulator, eventBus, activityBehavior
     this.active = true;
   });
 
-
-  // TODO: To remove when we will show data simulation results
-  simulator.on('trace', (event) => {
-    const {
-      scope,
-      action,
-      element
-    } = event;
-
-    if (scope) {
-      const {
-        initiator,
-        data,
-        element: scopeElement
-      } = scope;
-
-      console.log(`${action}ing element ${scopeElement.id} with data ${JSON.stringify([...data], null, 2)}`);
-    }
-
-    console.log(`${action} for element ${element.id}`);
-
-  });
+  eventBus.on(UPDATED_DATA_EVENT, () => { this.dataScopeUpdated = true; });
 }
 
 ScriptTaskBehavior.prototype.signal = function(context) {
+
+  if (this.active && this.dataScopeUpdated) {
+    // if data simulation has changed (by user), I need to re-run the script
+    // TODO: I probably need to change scope data :|
+    this.enter(context);
+    this._eventBus.fire(SET_DATA_NOT_EDITABLE_EVENT);
+    this.dataScopeUpdated = false;
+  }
   this._activityBehavior.signal(context);
 };
 
 ScriptTaskBehavior.prototype.enter = function(context) {
+  const { element, scope } = context;
+  const { wait } = this._simulator.getConfig(element);
+
+  if (wait && this.active && !this.dataScopeUpdated) {
+    this._eventBus.fire(SET_DATA_EDITABLE_EVENT);
+  }
   if (this.active) {
-    const { element, scope } = context;
     let bo = getBusinessObject(element);
 
     if (bo.scriptFormat !== 'groovy') {

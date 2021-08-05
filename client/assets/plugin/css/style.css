@@ -125,3 +125,15 @@
     display: flex;
     padding-left: 20px;
 }
+
+.data-panel .data-properties .variable-value {
+    display: inline-flex;
+}
+
+.data-panel .data-properties .variable-value-input {
+    display: inline-flex;
+}
+
+.data-panel .data-properties .variable-value-input.hidden, .data-panel .data-properties .variable-value.hidden{
+    display: none;
+}
