@@ -4,7 +4,7 @@ import {
   SET_DATA_EDITABLE_EVENT, SET_DATA_NOT_EDITABLE_EVENT,
   UPDATED_DATA_EVENT
 } from '../../events/EventHelper';
-import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
+import { getBusinessObject, is } from 'bpmn-js/lib/util/ModelUtil';
 
 export default function ScriptTaskBehavior(simulator, eventBus, activityBehavior, scriptRunner, dataTokenSimulation, dataNotifications) {
   this._simulator = simulator;
@@ -15,7 +15,7 @@ export default function ScriptTaskBehavior(simulator, eventBus, activityBehavior
   this._dataNotifications = dataNotifications;
 
   this.active = false;
-  this.dataScopeUpdated = false;
+  this.dataScopeUpdated = [];
 
   simulator.registerBehavior('bpmn:ScriptTask', this);
 
@@ -23,17 +23,27 @@ export default function ScriptTaskBehavior(simulator, eventBus, activityBehavior
     this.active = true;
   });
 
-  eventBus.on(UPDATED_DATA_EVENT, () => { this.dataScopeUpdated = true; });
+  eventBus.on(UPDATED_DATA_EVENT, (context) => {
+    const { element, participantId, variable } = context;
+
+    if (is(element, 'bpmn:ScriptTask')) {
+      this.dataScopeUpdated.push({ element, participantId, variable });
+    }
+  });
 }
 
 ScriptTaskBehavior.prototype.signal = function(context) {
-
-  if (this.active && this.dataScopeUpdated) {
+  const { element, scope } = context;
+  if (this.active) {
+    let dataScope = this.dataScopeUpdated.find(dScope => dScope.element.id === element.id);
     // if data simulation has changed (by user), I need to re-run the script
-    // TODO: I probably need to change scope data :|
-    this.enter(context);
-    this._eventBus.fire(SET_DATA_NOT_EDITABLE_EVENT);
-    this.dataScopeUpdated = false;
+    if (dataScope) {
+      scope.data.set(dataScope.variable.name, dataScope.variable);
+      this.enter(context);
+
+      this.dataScopeUpdated = this.dataScopeUpdated.filter(dScope => dScope.element.id !== element.id);
+    }
+    this._eventBus.fire(SET_DATA_NOT_EDITABLE_EVENT, { element });
   }
   this._activityBehavior.signal(context);
 };
@@ -42,8 +52,8 @@ ScriptTaskBehavior.prototype.enter = function(context) {
   const { element, scope } = context;
   const { wait } = this._simulator.getConfig(element);
 
-  if (wait && this.active && !this.dataScopeUpdated) {
-    this._eventBus.fire(SET_DATA_EDITABLE_EVENT);
+  if (wait && this.active && !this.dataScopeUpdated.some(dScope => dScope.element.id === element.id)) {
+    this._eventBus.fire(SET_DATA_EDITABLE_EVENT, { element });
   }
   if (this.active) {
     let bo = getBusinessObject(element);

@@ -33,7 +33,8 @@ export default function ActivityBehavior(simulator, eventBus, activityBehavior) 
 
 ActivityBehavior.prototype.signal = function(context) {
   if (this.active) {
-    this._eventBus.fire(SET_DATA_NOT_EDITABLE_EVENT);
+    const { element } = context;
+    this._eventBus.fire(SET_DATA_NOT_EDITABLE_EVENT, { element });
   }
   this._activityBehavior.signal(context);
 };
@@ -43,7 +44,7 @@ ActivityBehavior.prototype.enter = function(context) {
   const { wait } = this._simulator.getConfig(element);
 
   if (wait && this.active) {
-    this._eventBus.fire(SET_DATA_EDITABLE_EVENT);
+    this._eventBus.fire(SET_DATA_EDITABLE_EVENT, { element });
   }
   this._activityBehavior.enter(context);
 };

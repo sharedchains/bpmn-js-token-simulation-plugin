@@ -308,12 +308,13 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-function DataPanel(eventBus, canvas, dataTokenSimulation) {
+function DataPanel(simulator, eventBus, canvas, dataTokenSimulation) {
   this._eventBus = eventBus;
   this._canvas = canvas;
   this._dataTokenSimulation = dataTokenSimulation;
 
   this.editing = false;
+  this.waitingElements = [];
 
   this._eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_MODE_EVENT, context => {
     let active = context.active;
@@ -328,11 +329,14 @@ function DataPanel(eventBus, canvas, dataTokenSimulation) {
 
   this._eventBus.on('import.done', () => this._init());
 
-  this._eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_NOT_EDITABLE_EVENT, () => {
+  this._eventBus.on([_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_NOT_EDITABLE_EVENT, bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.RESET_SIMULATION_EVENT], (context) => {
     this.editing = false;
+    this.waitingElements = context && context.element ? this.waitingElements.filter((element) => element.id !== context.element.id) : [];
   });
 
-  this._eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_EDITABLE_EVENT, () => {
+  this._eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_EDITABLE_EVENT, (context) => {
+    this.waitingElements.push(context.element);
+
     let dataVariables = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.queryAll)('.variable-value');
     let dataVariableInputs = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.queryAll)('.variable-value-input');
 
@@ -382,9 +386,18 @@ function DataPanel(eventBus, canvas, dataTokenSimulation) {
             min_dom__WEBPACK_IMPORTED_MODULE_2__.delegate.bind(row, '.variable-value-input', 'change', event => {
               let newVariable = Object.assign({}, variable, { value: event.target.value });
               this._dataTokenSimulation.updateDataElementSimulation(id, newVariable);
-              this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.UPDATED_DATA_EVENT, {
-                participantId: key,
-                variable: newVariable
+
+              let scopes = simulator.findScopes((scope) => {
+                return scope.parent?.element.id === id &&
+                  this.waitingElements.some(element => element.id === scope.element.id)
+              });
+
+              scopes.forEach(scope => {
+                this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.UPDATED_DATA_EVENT, {
+                  participantId: id,
+                  variable: newVariable,
+                  element: scope.element
+                });
               });
             });
             section.append(row);
@@ -411,7 +424,7 @@ DataPanel.prototype._init = function() {
   });
 };
 
-DataPanel.$inject = ['eventBus', 'canvas', 'dataTokenSimulation'];
+DataPanel.$inject = ['simulator', 'eventBus', 'canvas', 'dataTokenSimulation'];
 
 /***/ }),
 
@@ -769,7 +782,8 @@ function ActivityBehavior(simulator, eventBus, activityBehavior) {
 
 ActivityBehavior.prototype.signal = function(context) {
   if (this.active) {
-    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_NOT_EDITABLE_EVENT);
+    const { element } = context;
+    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_NOT_EDITABLE_EVENT, { element });
   }
   this._activityBehavior.signal(context);
 };
@@ -779,7 +793,7 @@ ActivityBehavior.prototype.enter = function(context) {
   const { wait } = this._simulator.getConfig(element);
 
   if (wait && this.active) {
-    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_EDITABLE_EVENT);
+    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_EDITABLE_EVENT, { element });
   }
   this._activityBehavior.enter(context);
 };
@@ -960,7 +974,7 @@ function ScriptTaskBehavior(simulator, eventBus, activityBehavior, scriptRunner,
   this._dataNotifications = dataNotifications;
 
   this.active = false;
-  this.dataScopeUpdated = false;
+  this.dataScopeUpdated = [];
 
   simulator.registerBehavior('bpmn:ScriptTask', this);
 
@@ -968,17 +982,27 @@ function ScriptTaskBehavior(simulator, eventBus, activityBehavior, scriptRunner,
     this.active = true;
   });
 
-  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.UPDATED_DATA_EVENT, () => { this.dataScopeUpdated = true; });
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.UPDATED_DATA_EVENT, (context) => {
+    const { element, participantId, variable } = context;
+
+    if ((0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_1__.is)(element, 'bpmn:ScriptTask')) {
+      this.dataScopeUpdated.push({ element, participantId, variable });
+    }
+  });
 }
 
 ScriptTaskBehavior.prototype.signal = function(context) {
-
-  if (this.active && this.dataScopeUpdated) {
+  const { element, scope } = context;
+  if (this.active) {
+    let dataScope = this.dataScopeUpdated.find(dScope => dScope.element.id === element.id);
     // if data simulation has changed (by user), I need to re-run the script
-    // TODO: I probably need to change scope data :|
-    this.enter(context);
-    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_NOT_EDITABLE_EVENT);
-    this.dataScopeUpdated = false;
+    if (dataScope) {
+      scope.data.set(dataScope.variable.name, dataScope.variable);
+      this.enter(context);
+
+      this.dataScopeUpdated = this.dataScopeUpdated.filter(dScope => dScope.element.id !== element.id);
+    }
+    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_NOT_EDITABLE_EVENT, { element });
   }
   this._activityBehavior.signal(context);
 };
@@ -987,8 +1011,8 @@ ScriptTaskBehavior.prototype.enter = function(context) {
   const { element, scope } = context;
   const { wait } = this._simulator.getConfig(element);
 
-  if (wait && this.active && !this.dataScopeUpdated) {
-    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_EDITABLE_EVENT);
+  if (wait && this.active && !this.dataScopeUpdated.some(dScope => dScope.element.id === element.id)) {
+    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_EDITABLE_EVENT, { element });
   }
   if (this.active) {
     let bo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_1__.getBusinessObject)(element);

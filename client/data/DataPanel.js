@@ -20,12 +20,13 @@ import {
   UPDATED_DATA_EVENT
 } from '../events/EventHelper';
 
-export default function DataPanel(eventBus, canvas, dataTokenSimulation) {
+export default function DataPanel(simulator, eventBus, canvas, dataTokenSimulation) {
   this._eventBus = eventBus;
   this._canvas = canvas;
   this._dataTokenSimulation = dataTokenSimulation;
 
   this.editing = false;
+  this.waitingElements = [];
 
   this._eventBus.on(TOGGLE_MODE_EVENT, context => {
     let active = context.active;
@@ -40,11 +41,14 @@ export default function DataPanel(eventBus, canvas, dataTokenSimulation) {
 
   this._eventBus.on('import.done', () => this._init());
 
-  this._eventBus.on(SET_DATA_NOT_EDITABLE_EVENT, () => {
+  this._eventBus.on([SET_DATA_NOT_EDITABLE_EVENT, RESET_SIMULATION_EVENT], (context) => {
     this.editing = false;
+    this.waitingElements = context && context.element ? this.waitingElements.filter((element) => element.id !== context.element.id) : [];
   });
 
-  this._eventBus.on(SET_DATA_EDITABLE_EVENT, () => {
+  this._eventBus.on(SET_DATA_EDITABLE_EVENT, (context) => {
+    this.waitingElements.push(context.element);
+
     let dataVariables = domQueryAll('.variable-value');
     let dataVariableInputs = domQueryAll('.variable-value-input');
 
@@ -94,9 +98,18 @@ export default function DataPanel(eventBus, canvas, dataTokenSimulation) {
             domDelegate.bind(row, '.variable-value-input', 'change', event => {
               let newVariable = Object.assign({}, variable, { value: event.target.value });
               this._dataTokenSimulation.updateDataElementSimulation(id, newVariable);
-              this._eventBus.fire(UPDATED_DATA_EVENT, {
-                participantId: key,
-                variable: newVariable
+
+              let scopes = simulator.findScopes((scope) => {
+                return scope.parent?.element.id === id &&
+                  this.waitingElements.some(element => element.id === scope.element.id)
+              });
+
+              scopes.forEach(scope => {
+                this._eventBus.fire(UPDATED_DATA_EVENT, {
+                  participantId: id,
+                  variable: newVariable,
+                  element: scope.element
+                });
               });
             });
             section.append(row);
@@ -123,4 +136,4 @@ DataPanel.prototype._init = function() {
   });
 };
 
-DataPanel.$inject = ['eventBus', 'canvas', 'dataTokenSimulation'];
+DataPanel.$inject = ['simulator', 'eventBus', 'canvas', 'dataTokenSimulation'];
