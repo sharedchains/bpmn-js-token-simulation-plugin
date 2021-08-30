@@ -1,5 +1,5 @@
 import {
-  CODE_EDITOR_PLUGIN_PRESENT_EVENT,
+  CODE_EDITOR_PLUGIN_PRESENT_EVENT, HIGH_PRIORITY,
   LOW_PRIORITY,
   SET_DATA_EDITABLE_EVENT, SET_DATA_NOT_EDITABLE_EVENT,
   UPDATED_DATA_EVENT
@@ -23,7 +23,7 @@ export default function ScriptTaskBehavior(simulator, eventBus, activityBehavior
     this.active = true;
   });
 
-  eventBus.on(UPDATED_DATA_EVENT, (context) => {
+  eventBus.on(UPDATED_DATA_EVENT, HIGH_PRIORITY, (context) => {
     const { element, participantId, variable } = context;
 
     if (is(element, 'bpmn:ScriptTask')) {
@@ -32,20 +32,22 @@ export default function ScriptTaskBehavior(simulator, eventBus, activityBehavior
   });
 }
 
-ScriptTaskBehavior.prototype.signal = function(context) {
+ScriptTaskBehavior.prototype.signal = async function(context) {
   const { element, scope } = context;
   if (this.active) {
     let dataScope = this.dataScopeUpdated.find(dScope => dScope.element.id === element.id);
     // if data simulation has changed (by user), I need to re-run the script
     if (dataScope) {
       scope.data.set(dataScope.variable.name, dataScope.variable);
-      this.enter(context);
+      await this.enter(context);
 
       this.dataScopeUpdated = this.dataScopeUpdated.filter(dScope => dScope.element.id !== element.id);
+      this._activityBehavior.signal(context);
     }
     this._eventBus.fire(SET_DATA_NOT_EDITABLE_EVENT, { element });
+  } else {
+    this._activityBehavior.signal(context);
   }
-  this._activityBehavior.signal(context);
 };
 
 ScriptTaskBehavior.prototype.enter = function(context) {
@@ -86,7 +88,7 @@ ScriptTaskBehavior.prototype.enter = function(context) {
       return;
     }
 
-    this._scriptRunner.runScript(bo.script, scope.data)
+    return this._scriptRunner.runScript(bo.script, scope.data)
       .then(results => {
         this._dataTokenSimulation.addDataElementSimulation(element, {
           name: bo.resultVariable,

@@ -982,7 +982,7 @@ function ScriptTaskBehavior(simulator, eventBus, activityBehavior, scriptRunner,
     this.active = true;
   });
 
-  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.UPDATED_DATA_EVENT, (context) => {
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.UPDATED_DATA_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.HIGH_PRIORITY, (context) => {
     const { element, participantId, variable } = context;
 
     if ((0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_1__.is)(element, 'bpmn:ScriptTask')) {
@@ -991,20 +991,22 @@ function ScriptTaskBehavior(simulator, eventBus, activityBehavior, scriptRunner,
   });
 }
 
-ScriptTaskBehavior.prototype.signal = function(context) {
+ScriptTaskBehavior.prototype.signal = async function(context) {
   const { element, scope } = context;
   if (this.active) {
     let dataScope = this.dataScopeUpdated.find(dScope => dScope.element.id === element.id);
     // if data simulation has changed (by user), I need to re-run the script
     if (dataScope) {
       scope.data.set(dataScope.variable.name, dataScope.variable);
-      this.enter(context);
+      await this.enter(context);
 
       this.dataScopeUpdated = this.dataScopeUpdated.filter(dScope => dScope.element.id !== element.id);
+      this._activityBehavior.signal(context);
     }
     this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_NOT_EDITABLE_EVENT, { element });
+  } else {
+    this._activityBehavior.signal(context);
   }
-  this._activityBehavior.signal(context);
 };
 
 ScriptTaskBehavior.prototype.enter = function(context) {
@@ -1045,7 +1047,7 @@ ScriptTaskBehavior.prototype.enter = function(context) {
       return;
     }
 
-    this._scriptRunner.runScript(bo.script, scope.data)
+    return this._scriptRunner.runScript(bo.script, scope.data)
       .then(results => {
         this._dataTokenSimulation.addDataElementSimulation(element, {
           name: bo.resultVariable,

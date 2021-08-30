@@ -167,7 +167,6 @@ export default class Data {
   }
 
   updateDataElementSimulation(idParticipant, value) {
-    // TODO: Check editing simulation data, why on scripts there are 2 different values on view/edit panel
     let dataObject = this._data.find(obj => obj.element.id === idParticipant);
     dataObject.simulation.set(value['name'], { ...value });
   }
@@ -194,7 +193,6 @@ export default class Data {
   }
 
   getDataSimulation() {
-    // TODO: Check editing simulation data, why on scripts there are 2 different values on view/edit panel
     return this._data.map(data => {
       let obj = {};
       const colors = data.colors || {
