@@ -42,8 +42,8 @@ ScriptTaskBehavior.prototype.signal = async function(context) {
       await this.enter(context);
 
       this.dataScopeUpdated = this.dataScopeUpdated.filter(dScope => dScope.element.id !== element.id);
-      this._activityBehavior.signal(context);
     }
+    this._activityBehavior.signal(context);
     this._eventBus.fire(SET_DATA_NOT_EDITABLE_EVENT, { element });
   } else {
     this._activityBehavior.signal(context);
@@ -78,8 +78,7 @@ ScriptTaskBehavior.prototype.enter = function(context) {
       return;
     }
 
-    let resultVariableType = this._dataTokenSimulation.getResultVariableType(element, bo.resultVariable);
-    if (!resultVariableType) {
+    if (!bo.scriptResultVariableType) {
       this._dataNotifications.addElementNotification(element, {
         type: 'error',
         icon: 'fa-exclamation-triangle',
@@ -93,7 +92,7 @@ ScriptTaskBehavior.prototype.enter = function(context) {
         this._dataTokenSimulation.addDataElementSimulation(element, {
           name: bo.resultVariable,
           value: results.output,
-          type: resultVariableType
+          type: bo.scriptResultVariableType
         });
         this._activityBehavior.enter(context);
       })

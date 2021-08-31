@@ -135,22 +135,6 @@ class Data {
 
     });
 
-    eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.GET_RESULT_VARIABLE_TYPE_EVENT, (event, ctx) => {
-      return this.getResultVariableType(ctx.element, ctx.resultVariable);
-    });
-    eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.SET_RESULT_VARIABLE_TYPE_EVENT, (event, ctx) => {
-      let elem = this.#getProcessOrParticipantElement(ctx.element);
-      let dataObject = this.getDataObject(elem);
-      if (!dataObject) {
-        dataObject = { element: elem, data: new Map(), simulation: new Map(), resultVariables: {} };
-        this._data.push(dataObject);
-      }
-      dataObject.resultVariables[ctx.resultVariable] = ctx.resultVariableType;
-    });
-  }
-
-  getResultVariableType(element, resultVariable) {
-    return this.getDataObject(this.#getProcessOrParticipantElement(element))?.resultVariables[resultVariable];
   }
 
   #destructureMaps(...maps) {
@@ -199,7 +183,7 @@ class Data {
     if (index !== -1) {
       this._data[index].simulation = map;
     } else {
-      this._data.push({ element: elem, data: undefined, simulation: map, resultVariables: {} });
+      this._data.push({ element: elem, data: new Map(), simulation: map });
     }
   }
 
@@ -208,7 +192,7 @@ class Data {
     let map = this.getDataElements(elem);
     if (!map || map.length === 0) {
       map = new Map();
-      this._data.push({ element: elem, data: map, simulation: undefined, resultVariables: {} });
+      this._data.push({ element: elem, data: map, simulation: undefined});
     }
     map.set('', {});
   }
@@ -464,8 +448,6 @@ __webpack_require__.r(__webpack_exports__);
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "SET_RESULT_VARIABLE_TYPE_EVENT": () => (/* binding */ SET_RESULT_VARIABLE_TYPE_EVENT),
-/* harmony export */   "GET_RESULT_VARIABLE_TYPE_EVENT": () => (/* binding */ GET_RESULT_VARIABLE_TYPE_EVENT),
 /* harmony export */   "SET_DATA_EDITABLE_EVENT": () => (/* binding */ SET_DATA_EDITABLE_EVENT),
 /* harmony export */   "SET_DATA_NOT_EDITABLE_EVENT": () => (/* binding */ SET_DATA_NOT_EDITABLE_EVENT),
 /* harmony export */   "UPDATED_DATA_EVENT": () => (/* binding */ UPDATED_DATA_EVENT),
@@ -477,8 +459,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "MID_HIGH_PRIORITY": () => (/* binding */ MID_HIGH_PRIORITY),
 /* harmony export */   "HIGH_PRIORITY": () => (/* binding */ HIGH_PRIORITY)
 /* harmony export */ });
-const SET_RESULT_VARIABLE_TYPE_EVENT = 'tokenSimulation.resultVariableType.set';
-const GET_RESULT_VARIABLE_TYPE_EVENT = 'tokenSimulation.resultVariableType.get';
 const SET_DATA_EDITABLE_EVENT = 'tokenSimulation.data.setEditable';
 const SET_DATA_NOT_EDITABLE_EVENT = 'tokenSimulation.data.unsetEditable';
 const UPDATED_DATA_EVENT = 'tokenSimulation.data.update';
@@ -1001,8 +981,8 @@ ScriptTaskBehavior.prototype.signal = async function(context) {
       await this.enter(context);
 
       this.dataScopeUpdated = this.dataScopeUpdated.filter(dScope => dScope.element.id !== element.id);
-      this._activityBehavior.signal(context);
     }
+    this._activityBehavior.signal(context);
     this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_NOT_EDITABLE_EVENT, { element });
   } else {
     this._activityBehavior.signal(context);
@@ -1037,8 +1017,7 @@ ScriptTaskBehavior.prototype.enter = function(context) {
       return;
     }
 
-    let resultVariableType = this._dataTokenSimulation.getResultVariableType(element, bo.resultVariable);
-    if (!resultVariableType) {
+    if (!bo.scriptResultVariableType) {
       this._dataNotifications.addElementNotification(element, {
         type: 'error',
         icon: 'fa-exclamation-triangle',
@@ -1052,7 +1031,7 @@ ScriptTaskBehavior.prototype.enter = function(context) {
         this._dataTokenSimulation.addDataElementSimulation(element, {
           name: bo.resultVariable,
           value: results.output,
-          type: resultVariableType
+          type: bo.scriptResultVariableType
         });
         this._activityBehavior.enter(context);
       })

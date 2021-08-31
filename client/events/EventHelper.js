@@ -1,5 +1,3 @@
-const SET_RESULT_VARIABLE_TYPE_EVENT = 'tokenSimulation.resultVariableType.set';
-const GET_RESULT_VARIABLE_TYPE_EVENT = 'tokenSimulation.resultVariableType.get';
 const SET_DATA_EDITABLE_EVENT = 'tokenSimulation.data.setEditable';
 const SET_DATA_NOT_EDITABLE_EVENT = 'tokenSimulation.data.unsetEditable';
 const UPDATED_DATA_EVENT = 'tokenSimulation.data.update';
@@ -14,8 +12,6 @@ const MID_HIGH_PRIORITY = 6000;
 const HIGH_PRIORITY = 10000;
 
 export {
-  SET_RESULT_VARIABLE_TYPE_EVENT,
-  GET_RESULT_VARIABLE_TYPE_EVENT,
   SET_DATA_EDITABLE_EVENT,
   SET_DATA_NOT_EDITABLE_EVENT,
   UPDATED_DATA_EVENT,

@@ -1,7 +1,7 @@
 import { RESET_SIMULATION_EVENT, SCOPE_CREATE_EVENT } from 'bpmn-js-token-simulation/lib/util/EventHelper';
 import { getBusinessObject, is } from 'bpmn-js/lib/util/ModelUtil';
 import { findRootElementsByType } from 'bpmn-js-properties-panel/lib/Utils';
-import { GET_RESULT_VARIABLE_TYPE_EVENT, LOW_PRIORITY, SET_RESULT_VARIABLE_TYPE_EVENT } from '../events/EventHelper';
+import { LOW_PRIORITY } from '../events/EventHelper';
 
 export default class Data {
 
@@ -61,22 +61,6 @@ export default class Data {
 
     });
 
-    eventBus.on(GET_RESULT_VARIABLE_TYPE_EVENT, (event, ctx) => {
-      return this.getResultVariableType(ctx.element, ctx.resultVariable);
-    });
-    eventBus.on(SET_RESULT_VARIABLE_TYPE_EVENT, (event, ctx) => {
-      let elem = this.#getProcessOrParticipantElement(ctx.element);
-      let dataObject = this.getDataObject(elem);
-      if (!dataObject) {
-        dataObject = { element: elem, data: new Map(), simulation: new Map(), resultVariables: {} };
-        this._data.push(dataObject);
-      }
-      dataObject.resultVariables[ctx.resultVariable] = ctx.resultVariableType;
-    });
-  }
-
-  getResultVariableType(element, resultVariable) {
-    return this.getDataObject(this.#getProcessOrParticipantElement(element))?.resultVariables[resultVariable];
   }
 
   #destructureMaps(...maps) {
@@ -125,7 +109,7 @@ export default class Data {
     if (index !== -1) {
       this._data[index].simulation = map;
     } else {
-      this._data.push({ element: elem, data: undefined, simulation: map, resultVariables: {} });
+      this._data.push({ element: elem, data: new Map(), simulation: map });
     }
   }
 
@@ -134,7 +118,7 @@ export default class Data {
     let map = this.getDataElements(elem);
     if (!map || map.length === 0) {
       map = new Map();
-      this._data.push({ element: elem, data: map, simulation: undefined, resultVariables: {} });
+      this._data.push({ element: elem, data: map, simulation: undefined});
     }
     map.set('', {});
   }
