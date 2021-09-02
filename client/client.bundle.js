@@ -298,13 +298,29 @@ function DataPanel(simulator, eventBus, canvas, dataTokenSimulation) {
   this._dataTokenSimulation = dataTokenSimulation;
 
   this.editing = false;
+  this._active = false;
   this.waitingElements = [];
+
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
+    this._active = true;
+  });
 
   this._eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_MODE_EVENT, context => {
     let active = context.active;
 
     let dataPanel = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.query)('.data-panel');
-    if (active) {
+    if (!active) {
+      (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(dataPanel).add('hidden');
+    } else if (this._active) {
+      (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(dataPanel).remove('hidden');
+    }
+  });
+
+  this._eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_DATA_SIMULATION_EVENT, context => {
+    this._active = context.active;
+
+    let dataPanel = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.query)('.data-panel');
+    if (this._active) {
       (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(dataPanel).remove('hidden');
     } else {
       (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(dataPanel).add('hidden');
@@ -344,52 +360,54 @@ function DataPanel(simulator, eventBus, canvas, dataTokenSimulation) {
   });
 
   this._eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.SCOPE_DESTROYED_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
-    let data = this._dataTokenSimulation.getDataSimulation();
-    this.container.textContent = '';
+    if (this._active) {
+      let data = this._dataTokenSimulation.getDataSimulation();
+      this.container.textContent = '';
 
-    data.forEach((simObject) => {
-      let section = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(`<div class="section"></div>`);
-      for (const [id, simulationData] of Object.entries(simObject)) {
-        let title = `<div class="sectionTitle">
+      data.forEach((simObject) => {
+        let section = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(`<div class="section"></div>`);
+        for (const [id, simulationData] of Object.entries(simObject)) {
+          let title = `<div class="sectionTitle">
             <div class="token" style="background-color: ${simulationData.simulation && simulationData.simulation.size ? simulationData.colors.primary : '#999'}"></div>
             <h4 class="participant">${id}</h4>
         </div>`;
-        if (simulationData.simulation && simulationData.simulation.size) {
-          section.style.borderColor = String(simulationData.colors.primary);
-        }
-        let domTitle = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(title);
-        section.appendChild(domTitle);
-        if (simulationData.simulation) {
-          for (const [key, variable] of simulationData.simulation.entries()) {
-            let row = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(`<p class="variable">
+          if (simulationData.simulation && simulationData.simulation.size) {
+            section.style.borderColor = String(simulationData.colors.primary);
+          }
+          let domTitle = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(title);
+          section.appendChild(domTitle);
+          if (simulationData.simulation) {
+            for (const [key, variable] of simulationData.simulation.entries()) {
+              let row = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(`<p class="variable">
                                         <strong>${key}</strong>
                                         &nbsp;&nbsp;:&nbsp;&nbsp;
                                         <span class="variable-value ${this.editing ? 'hidden' : ''}">${variable.value}</span>
                                         <input type="text" class="variable-value-input ${this.editing ? '' : 'hidden'}" value="${variable.value}" />
                                         </p>`);
-            min_dom__WEBPACK_IMPORTED_MODULE_2__.delegate.bind(row, '.variable-value-input', 'change', event => {
-              let newVariable = Object.assign({}, variable, { value: event.target.value });
-              this._dataTokenSimulation.updateDataElementSimulation(id, newVariable);
+              min_dom__WEBPACK_IMPORTED_MODULE_2__.delegate.bind(row, '.variable-value-input', 'change', event => {
+                let newVariable = Object.assign({}, variable, { value: event.target.value });
+                this._dataTokenSimulation.updateDataElementSimulation(id, newVariable);
 
-              let scopes = simulator.findScopes((scope) => {
-                return scope.parent?.element.id === id &&
-                  this.waitingElements.some(element => element.id === scope.element.id)
-              });
+                let scopes = simulator.findScopes((scope) => {
+                  return scope.parent?.element.id === id &&
+                    this.waitingElements.some(element => element.id === scope.element.id);
+                });
 
-              scopes.forEach(scope => {
-                this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.UPDATED_DATA_EVENT, {
-                  participantId: id,
-                  variable: newVariable,
-                  element: scope.element
+                scopes.forEach(scope => {
+                  this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.UPDATED_DATA_EVENT, {
+                    participantId: id,
+                    variable: newVariable,
+                    element: scope.element
+                  });
                 });
               });
-            });
-            section.append(row);
+              section.append(row);
+            }
           }
         }
-      }
-      this.container.appendChild(section);
-    });
+        this.container.appendChild(section);
+      });
+    }
   });
 }
 
@@ -412,6 +430,55 @@ DataPanel.$inject = ['simulator', 'eventBus', 'canvas', 'dataTokenSimulation'];
 
 /***/ }),
 
+/***/ "./client/data/ToggleData.js":
+/*!***********************************!*\
+  !*** ./client/data/ToggleData.js ***!
+  \***********************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ ToggleData)
+/* harmony export */ });
+/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! min-dom */ "./node_modules/min-dom/dist/index.esm.js");
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../events/EventHelper */ "./client/events/EventHelper.js");
+
+
+
+function ToggleData(eventBus, tokenSimulationPalette) {
+  this._eventBus = eventBus;
+  this._tokenSimulationPalette = tokenSimulationPalette;
+
+  this._active = false;
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
+    this._active = true;
+  });
+
+  this._init();
+}
+
+ToggleData.prototype._init = function() {
+  this.paletteEntry = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(`
+    <div class="entry active" title="Toggle data">
+      <i class="fa fa-bar-chart"></i>
+    </div>
+  `);
+
+  min_dom__WEBPACK_IMPORTED_MODULE_1__.event.bind(this.paletteEntry, 'click', () => {
+    (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.classes)(this.paletteEntry).toggle('active');
+    this._active = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.classes)(this.paletteEntry).has('active');
+
+    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_DATA_SIMULATION_EVENT, { active: this._active });
+  });
+
+  this._tokenSimulationPalette.addEntry(this.paletteEntry, 4);
+};
+
+ToggleData.$inject = ['eventBus', 'tokenSimulationPalette'];
+
+/***/ }),
+
 /***/ "./client/data/index.js":
 /*!******************************!*\
   !*** ./client/data/index.js ***!
@@ -425,16 +492,24 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _Data__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./Data */ "./client/data/Data.js");
 /* harmony import */ var _DataPanel__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./DataPanel */ "./client/data/DataPanel.js");
+/* harmony import */ var _ToggleData__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./ToggleData */ "./client/data/ToggleData.js");
+/* harmony import */ var bpmn_js_token_simulation_lib_features_palette__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/features/palette */ "../bpmn-js-token-simulation/lib/features/palette/index.js");
+
+
+
 
 
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  __depends__: [bpmn_js_token_simulation_lib_features_palette__WEBPACK_IMPORTED_MODULE_3__.default],
   __init__: [
     'dataTokenSimulation',
-    'dataPanel'
+    'dataPanel',
+    'toggleData'
   ],
   dataTokenSimulation: ['type', _Data__WEBPACK_IMPORTED_MODULE_0__.default],
-  dataPanel: ['type', _DataPanel__WEBPACK_IMPORTED_MODULE_1__.default]
+  dataPanel: ['type', _DataPanel__WEBPACK_IMPORTED_MODULE_1__.default],
+  toggleData: ['type', _ToggleData__WEBPACK_IMPORTED_MODULE_2__.default]
 });
 
 /***/ }),
@@ -448,6 +523,7 @@ __webpack_require__.r(__webpack_exports__);
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "TOGGLE_DATA_SIMULATION_EVENT": () => (/* binding */ TOGGLE_DATA_SIMULATION_EVENT),
 /* harmony export */   "SET_DATA_EDITABLE_EVENT": () => (/* binding */ SET_DATA_EDITABLE_EVENT),
 /* harmony export */   "SET_DATA_NOT_EDITABLE_EVENT": () => (/* binding */ SET_DATA_NOT_EDITABLE_EVENT),
 /* harmony export */   "UPDATED_DATA_EVENT": () => (/* binding */ UPDATED_DATA_EVENT),
@@ -462,6 +538,8 @@ __webpack_require__.r(__webpack_exports__);
 const SET_DATA_EDITABLE_EVENT = 'tokenSimulation.data.setEditable';
 const SET_DATA_NOT_EDITABLE_EVENT = 'tokenSimulation.data.unsetEditable';
 const UPDATED_DATA_EVENT = 'tokenSimulation.data.update';
+
+const TOGGLE_DATA_SIMULATION_EVENT = 'tokenSimulation.data.toggle';
 
 const CODE_EDITOR_PLUGIN_PRESENT_EVENT = 'codeEditor.init';
 const RUN_CODE_EVALUATION_EVENT = 'codeEditor.run';
@@ -744,6 +822,9 @@ function ActivityBehavior(simulator, eventBus, activityBehavior) {
   eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
     this.active = true;
   });
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_DATA_SIMULATION_EVENT, context => {
+    this.active = context.active;
+  });
 
   const elements = [
     'bpmn:BusinessRuleTask',
@@ -797,20 +878,31 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (/* binding */ ExclusiveGatewayBehavior)
 /* harmony export */ });
-/* harmony import */ var bpmn_js_token_simulation_lib_simulator_behaviors_ModelUtil__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/simulator/behaviors/ModelUtil */ "../bpmn-js-token-simulation/lib/simulator/behaviors/ModelUtil.js");
-/* harmony import */ var bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! bpmn-js/lib/util/ModelUtil */ "./node_modules/bpmn-js/lib/util/ModelUtil.js");
+/* harmony import */ var bpmn_js_token_simulation_lib_simulator_behaviors_ModelUtil__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/simulator/behaviors/ModelUtil */ "../bpmn-js-token-simulation/lib/simulator/behaviors/ModelUtil.js");
+/* harmony import */ var bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! bpmn-js/lib/util/ModelUtil */ "./node_modules/bpmn-js/lib/util/ModelUtil.js");
 /* harmony import */ var _script_runner_ScriptRunner__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../script-runner/ScriptRunner */ "./client/simulation/script-runner/ScriptRunner.js");
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../events/EventHelper */ "./client/events/EventHelper.js");
 
 
 
 
-function ExclusiveGatewayBehavior(simulator, scriptRunner, exclusiveGatewayBehavior, dataNotifications) {
+
+function ExclusiveGatewayBehavior(simulator, scriptRunner, exclusiveGatewayBehavior, dataNotifications, eventBus) {
   this._simulator = simulator;
   this._scriptRunner = scriptRunner;
   this._exclusiveGatewayBehavior = exclusiveGatewayBehavior;
   this._dataNotifications = dataNotifications;
 
   simulator.registerBehavior('bpmn:ExclusiveGateway', this);
+
+  this.active = false;
+
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.LOW_PRIORITY, () => {
+    this.active = true;
+  });
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_DATA_SIMULATION_EVENT, context => {
+    this.active = context.active;
+  });
 }
 
 ExclusiveGatewayBehavior.prototype.sortSequenceFlows = function(element, defaultFlow) {
@@ -822,7 +914,7 @@ ExclusiveGatewayBehavior.prototype.sortSequenceFlows = function(element, default
    * [ flow-2, flow-3, flow-1] (like a switch-case instruction)
    *
    */
-  return (0,bpmn_js_token_simulation_lib_simulator_behaviors_ModelUtil__WEBPACK_IMPORTED_MODULE_1__.filterSequenceFlows)(element.outgoing).sort((first, second) => {
+  return (0,bpmn_js_token_simulation_lib_simulator_behaviors_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.filterSequenceFlows)(element.outgoing).sort((first, second) => {
     let firstId = first.id.toUpperCase();
     let secondId = second.id.toUpperCase();
 
@@ -846,10 +938,9 @@ ExclusiveGatewayBehavior.prototype.sortSequenceFlows = function(element, default
 ExclusiveGatewayBehavior.prototype.enter = function(context) {
   const { element, scope } = context;
 
-  // TODO: base logic to "toggle data handling"
-  if (scope.data?.size) {
+  if (this.active) {
 
-    let bo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.getBusinessObject)(element);
+    let bo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__.getBusinessObject)(element);
     const defaultFlow = bo.default?.id;
 
     const outgoings = this.sortSequenceFlows(element, defaultFlow);
@@ -857,7 +948,7 @@ ExclusiveGatewayBehavior.prototype.enter = function(context) {
     const promises = [];
 
     outgoings.every(async outgoing => {
-      let outgoingBo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.getBusinessObject)(outgoing);
+      let outgoingBo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__.getBusinessObject)(outgoing);
       const conditionExpression = outgoingBo.conditionExpression;
       if (conditionExpression) {
         const expression = conditionExpression.body;
@@ -925,7 +1016,7 @@ ExclusiveGatewayBehavior.prototype.exit = function(context) {
   return this._exclusiveGatewayBehavior.exit(context);
 };
 
-ExclusiveGatewayBehavior.$inject = ['simulator', 'scriptRunner', 'exclusiveGatewayBehavior', 'dataNotifications'];
+ExclusiveGatewayBehavior.$inject = ['simulator', 'scriptRunner', 'exclusiveGatewayBehavior', 'dataNotifications', 'eventBus'];
 
 /***/ }),
 
@@ -960,6 +1051,9 @@ function ScriptTaskBehavior(simulator, eventBus, activityBehavior, scriptRunner,
 
   eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
     this.active = true;
+  });
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_DATA_SIMULATION_EVENT, context => {
+    this.active = context.active;
   });
 
   eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.UPDATED_DATA_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.HIGH_PRIORITY, (context) => {

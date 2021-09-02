@@ -1,14 +1,24 @@
 import { filterSequenceFlows } from 'bpmn-js-token-simulation/lib/simulator/behaviors/ModelUtil';
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { expressionPattern, isExpressionPattern } from '../script-runner/ScriptRunner';
+import { CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, TOGGLE_DATA_SIMULATION_EVENT } from '../../events/EventHelper';
 
-export default function ExclusiveGatewayBehavior(simulator, scriptRunner, exclusiveGatewayBehavior, dataNotifications) {
+export default function ExclusiveGatewayBehavior(simulator, scriptRunner, exclusiveGatewayBehavior, dataNotifications, eventBus) {
   this._simulator = simulator;
   this._scriptRunner = scriptRunner;
   this._exclusiveGatewayBehavior = exclusiveGatewayBehavior;
   this._dataNotifications = dataNotifications;
 
   simulator.registerBehavior('bpmn:ExclusiveGateway', this);
+
+  this.active = false;
+
+  eventBus.on(CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, () => {
+    this.active = true;
+  });
+  eventBus.on(TOGGLE_DATA_SIMULATION_EVENT, context => {
+    this.active = context.active;
+  });
 }
 
 ExclusiveGatewayBehavior.prototype.sortSequenceFlows = function(element, defaultFlow) {
@@ -44,8 +54,7 @@ ExclusiveGatewayBehavior.prototype.sortSequenceFlows = function(element, default
 ExclusiveGatewayBehavior.prototype.enter = function(context) {
   const { element, scope } = context;
 
-  // TODO: base logic to "toggle data handling"
-  if (scope.data?.size) {
+  if (this.active) {
 
     let bo = getBusinessObject(element);
     const defaultFlow = bo.default?.id;
@@ -123,4 +132,4 @@ ExclusiveGatewayBehavior.prototype.exit = function(context) {
   return this._exclusiveGatewayBehavior.exit(context);
 };
 
-ExclusiveGatewayBehavior.$inject = ['simulator', 'scriptRunner', 'exclusiveGatewayBehavior', 'dataNotifications'];
+ExclusiveGatewayBehavior.$inject = ['simulator', 'scriptRunner', 'exclusiveGatewayBehavior', 'dataNotifications', 'eventBus'];

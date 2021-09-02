@@ -14,9 +14,11 @@ import {
 } from 'bpmn-js-token-simulation/lib/util/EventHelper';
 
 import {
+  CODE_EDITOR_PLUGIN_PRESENT_EVENT,
   LOW_PRIORITY,
   SET_DATA_EDITABLE_EVENT,
   SET_DATA_NOT_EDITABLE_EVENT,
+  TOGGLE_DATA_SIMULATION_EVENT,
   UPDATED_DATA_EVENT
 } from '../events/EventHelper';
 
@@ -26,13 +28,29 @@ export default function DataPanel(simulator, eventBus, canvas, dataTokenSimulati
   this._dataTokenSimulation = dataTokenSimulation;
 
   this.editing = false;
+  this._active = false;
   this.waitingElements = [];
+
+  eventBus.on(CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, () => {
+    this._active = true;
+  });
 
   this._eventBus.on(TOGGLE_MODE_EVENT, context => {
     let active = context.active;
 
     let dataPanel = domQuery('.data-panel');
-    if (active) {
+    if (!active) {
+      domClasses(dataPanel).add('hidden');
+    } else if (this._active) {
+      domClasses(dataPanel).remove('hidden');
+    }
+  });
+
+  this._eventBus.on(TOGGLE_DATA_SIMULATION_EVENT, context => {
+    this._active = context.active;
+
+    let dataPanel = domQuery('.data-panel');
+    if (this._active) {
       domClasses(dataPanel).remove('hidden');
     } else {
       domClasses(dataPanel).add('hidden');
@@ -72,52 +90,54 @@ export default function DataPanel(simulator, eventBus, canvas, dataTokenSimulati
   });
 
   this._eventBus.on(SCOPE_DESTROYED_EVENT, LOW_PRIORITY, () => {
-    let data = this._dataTokenSimulation.getDataSimulation();
-    this.container.textContent = '';
+    if (this._active) {
+      let data = this._dataTokenSimulation.getDataSimulation();
+      this.container.textContent = '';
 
-    data.forEach((simObject) => {
-      let section = domify(`<div class="section"></div>`);
-      for (const [id, simulationData] of Object.entries(simObject)) {
-        let title = `<div class="sectionTitle">
+      data.forEach((simObject) => {
+        let section = domify(`<div class="section"></div>`);
+        for (const [id, simulationData] of Object.entries(simObject)) {
+          let title = `<div class="sectionTitle">
             <div class="token" style="background-color: ${simulationData.simulation && simulationData.simulation.size ? simulationData.colors.primary : '#999'}"></div>
             <h4 class="participant">${id}</h4>
         </div>`;
-        if (simulationData.simulation && simulationData.simulation.size) {
-          section.style.borderColor = String(simulationData.colors.primary);
-        }
-        let domTitle = domify(title);
-        section.appendChild(domTitle);
-        if (simulationData.simulation) {
-          for (const [key, variable] of simulationData.simulation.entries()) {
-            let row = domify(`<p class="variable">
+          if (simulationData.simulation && simulationData.simulation.size) {
+            section.style.borderColor = String(simulationData.colors.primary);
+          }
+          let domTitle = domify(title);
+          section.appendChild(domTitle);
+          if (simulationData.simulation) {
+            for (const [key, variable] of simulationData.simulation.entries()) {
+              let row = domify(`<p class="variable">
                                         <strong>${key}</strong>
                                         &nbsp;&nbsp;:&nbsp;&nbsp;
                                         <span class="variable-value ${this.editing ? 'hidden' : ''}">${variable.value}</span>
                                         <input type="text" class="variable-value-input ${this.editing ? '' : 'hidden'}" value="${variable.value}" />
                                         </p>`);
-            domDelegate.bind(row, '.variable-value-input', 'change', event => {
-              let newVariable = Object.assign({}, variable, { value: event.target.value });
-              this._dataTokenSimulation.updateDataElementSimulation(id, newVariable);
+              domDelegate.bind(row, '.variable-value-input', 'change', event => {
+                let newVariable = Object.assign({}, variable, { value: event.target.value });
+                this._dataTokenSimulation.updateDataElementSimulation(id, newVariable);
 
-              let scopes = simulator.findScopes((scope) => {
-                return scope.parent?.element.id === id &&
-                  this.waitingElements.some(element => element.id === scope.element.id)
-              });
+                let scopes = simulator.findScopes((scope) => {
+                  return scope.parent?.element.id === id &&
+                    this.waitingElements.some(element => element.id === scope.element.id);
+                });
 
-              scopes.forEach(scope => {
-                this._eventBus.fire(UPDATED_DATA_EVENT, {
-                  participantId: id,
-                  variable: newVariable,
-                  element: scope.element
+                scopes.forEach(scope => {
+                  this._eventBus.fire(UPDATED_DATA_EVENT, {
+                    participantId: id,
+                    variable: newVariable,
+                    element: scope.element
+                  });
                 });
               });
-            });
-            section.append(row);
+              section.append(row);
+            }
           }
         }
-      }
-      this.container.appendChild(section);
-    });
+        this.container.appendChild(section);
+      });
+    }
   });
 }
 

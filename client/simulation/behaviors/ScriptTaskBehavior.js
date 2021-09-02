@@ -1,7 +1,10 @@
 import {
-  CODE_EDITOR_PLUGIN_PRESENT_EVENT, HIGH_PRIORITY,
+  CODE_EDITOR_PLUGIN_PRESENT_EVENT,
+  HIGH_PRIORITY,
   LOW_PRIORITY,
-  SET_DATA_EDITABLE_EVENT, SET_DATA_NOT_EDITABLE_EVENT,
+  SET_DATA_EDITABLE_EVENT,
+  SET_DATA_NOT_EDITABLE_EVENT,
+  TOGGLE_DATA_SIMULATION_EVENT,
   UPDATED_DATA_EVENT
 } from '../../events/EventHelper';
 import { getBusinessObject, is } from 'bpmn-js/lib/util/ModelUtil';
@@ -21,6 +24,9 @@ export default function ScriptTaskBehavior(simulator, eventBus, activityBehavior
 
   eventBus.on(CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, () => {
     this.active = true;
+  });
+  eventBus.on(TOGGLE_DATA_SIMULATION_EVENT, context => {
+    this.active = context.active;
   });
 
   eventBus.on(UPDATED_DATA_EVENT, HIGH_PRIORITY, (context) => {

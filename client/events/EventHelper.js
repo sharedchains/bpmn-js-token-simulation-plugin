@@ -2,6 +2,8 @@ const SET_DATA_EDITABLE_EVENT = 'tokenSimulation.data.setEditable';
 const SET_DATA_NOT_EDITABLE_EVENT = 'tokenSimulation.data.unsetEditable';
 const UPDATED_DATA_EVENT = 'tokenSimulation.data.update';
 
+const TOGGLE_DATA_SIMULATION_EVENT = 'tokenSimulation.data.toggle';
+
 const CODE_EDITOR_PLUGIN_PRESENT_EVENT = 'codeEditor.init';
 const RUN_CODE_EVALUATION_EVENT = 'codeEditor.run';
 const GET_DATA_TYPES_EVENT = 'codeEditor.getTypes';
@@ -12,6 +14,7 @@ const MID_HIGH_PRIORITY = 6000;
 const HIGH_PRIORITY = 10000;
 
 export {
+  TOGGLE_DATA_SIMULATION_EVENT,
   SET_DATA_EDITABLE_EVENT,
   SET_DATA_NOT_EDITABLE_EVENT,
   UPDATED_DATA_EVENT,
