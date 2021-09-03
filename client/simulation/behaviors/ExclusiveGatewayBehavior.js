@@ -101,14 +101,14 @@ ExclusiveGatewayBehavior.prototype.enter = function(context) {
       return true;
     });
 
-    this.evaluatePromises(promises);
+    this.evaluatePromises(element, promises);
 
   } else {
     this._exclusiveGatewayBehavior.enter(context);
   }
 };
 
-ExclusiveGatewayBehavior.prototype.evaluatePromises = function(promises) {
+ExclusiveGatewayBehavior.prototype.evaluatePromises = function(element, promises) {
   Promise.all(promises).then(executions => {
     executions.every(execution => {
       if (execution.output &&
@@ -120,7 +120,7 @@ ExclusiveGatewayBehavior.prototype.evaluatePromises = function(promises) {
       return true;
     });
   }).catch(error => {
-    this._dataNotifications.addElementNotification(context.element, {
+    this._dataNotifications.addElementNotification(element, {
       type: 'error',
       icon: 'fa-exclamation-triangle',
       text: error.error

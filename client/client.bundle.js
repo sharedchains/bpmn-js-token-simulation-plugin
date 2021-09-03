@@ -985,14 +985,14 @@ ExclusiveGatewayBehavior.prototype.enter = function(context) {
       return true;
     });
 
-    this.evaluatePromises(promises);
+    this.evaluatePromises(element, promises);
 
   } else {
     this._exclusiveGatewayBehavior.enter(context);
   }
 };
 
-ExclusiveGatewayBehavior.prototype.evaluatePromises = function(promises) {
+ExclusiveGatewayBehavior.prototype.evaluatePromises = function(element, promises) {
   Promise.all(promises).then(executions => {
     executions.every(execution => {
       if (execution.output &&
@@ -1004,7 +1004,7 @@ ExclusiveGatewayBehavior.prototype.evaluatePromises = function(promises) {
       return true;
     });
   }).catch(error => {
-    this._dataNotifications.addElementNotification(context.element, {
+    this._dataNotifications.addElementNotification(element, {
       type: 'error',
       icon: 'fa-exclamation-triangle',
       text: error.error
@@ -1275,6 +1275,106 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ }),
 
+/***/ "./client/simulation/exclusive-gateway-settings/DataExclusiveGatewaySettings.js":
+/*!**************************************************************************************!*\
+  !*** ./client/simulation/exclusive-gateway-settings/DataExclusiveGatewaySettings.js ***!
+  \**************************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ DataExclusiveGatewaySettings)
+/* harmony export */ });
+/* harmony import */ var bpmn_js_token_simulation_lib_util_ElementHelper__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/util/ElementHelper */ "../bpmn-js-token-simulation/lib/util/ElementHelper.js");
+/* harmony import */ var bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../events/EventHelper */ "./client/events/EventHelper.js");
+
+
+
+
+const STYLE = getComputedStyle(document.documentElement);
+const DEFAULT_COLOR = STYLE.getPropertyValue('--token-simulation-grey-darken-30');
+
+function DataExclusiveGatewaySettings(eventBus, elementRegistry, exclusiveGatewaySettings, contextPads) {
+  this._elementRegistry = elementRegistry;
+  this._exclusiveGatewaySettings = exclusiveGatewaySettings;
+  this._contextPads = contextPads;
+
+  this.active = false;
+  eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_MODE_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, context => {
+    if (context.active) {
+      this.active = context.active;
+      const exclusiveGateways = this._elementRegistry.filter(element => {
+        return (0,bpmn_js_token_simulation_lib_util_ElementHelper__WEBPACK_IMPORTED_MODULE_2__.is)(element, 'bpmn:ExclusiveGateway');
+      });
+      this.resetSequenceFlows(exclusiveGateways);
+    }
+  });
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_DATA_SIMULATION_EVENT, context => {
+    this.active = context.active;
+
+    const exclusiveGateways = this._elementRegistry.filter(element => {
+      return (0,bpmn_js_token_simulation_lib_util_ElementHelper__WEBPACK_IMPORTED_MODULE_2__.is)(element, 'bpmn:ExclusiveGateway');
+    });
+    if (this.active) {
+      this.resetSequenceFlows(exclusiveGateways);
+    } else {
+      this._exclusiveGatewaySettings.setSequenceFlowsDefault();
+      exclusiveGateways.forEach(exclusiveGateway => {
+        contextPads.openElementContextPads(exclusiveGateway);
+      });
+    }
+  });
+
+  eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.ELEMENT_CHANGED_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, event => {
+    const {
+      element
+    } = event;
+
+    if (this.active && (0,bpmn_js_token_simulation_lib_util_ElementHelper__WEBPACK_IMPORTED_MODULE_2__.is)(element, 'bpmn:ExclusiveGateway')) {
+      contextPads.closeElementContextPads(element);
+    }
+  });
+}
+
+DataExclusiveGatewaySettings.prototype.resetSequenceFlows = function(exclusiveGateways) {
+  this._exclusiveGatewaySettings.resetSequenceFlows();
+
+  exclusiveGateways.forEach(exclusiveGateway => {
+    this._contextPads.closeElementContextPads(exclusiveGateway);
+    // set colors
+    exclusiveGateway.outgoing.forEach(outgoing => {
+      this._exclusiveGatewaySettings.setColor(outgoing, DEFAULT_COLOR);
+    });
+  });
+};
+
+DataExclusiveGatewaySettings.$inject = ['eventBus', 'elementRegistry', 'exclusiveGatewaySettings', 'contextPads'];
+
+/***/ }),
+
+/***/ "./client/simulation/exclusive-gateway-settings/index.js":
+/*!***************************************************************!*\
+  !*** ./client/simulation/exclusive-gateway-settings/index.js ***!
+  \***************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _DataExclusiveGatewaySettings__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./DataExclusiveGatewaySettings */ "./client/simulation/exclusive-gateway-settings/DataExclusiveGatewaySettings.js");
+
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  __init__: ['dataExclusiveGatewaySettings'],
+  dataExclusiveGatewaySettings: ['type', _DataExclusiveGatewaySettings__WEBPACK_IMPORTED_MODULE_0__.default]
+});
+
+/***/ }),
+
 /***/ "./client/simulation/index.js":
 /*!************************************!*\
   !*** ./client/simulation/index.js ***!
@@ -1289,6 +1389,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _data_notifications__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./data-notifications */ "./client/simulation/data-notifications/index.js");
 /* harmony import */ var _behaviors__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./behaviors */ "./client/simulation/behaviors/index.js");
 /* harmony import */ var _script_runner__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./script-runner */ "./client/simulation/script-runner/index.js");
+/* harmony import */ var _exclusive_gateway_settings__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./exclusive-gateway-settings */ "./client/simulation/exclusive-gateway-settings/index.js");
+
 
 
 
@@ -1297,7 +1399,8 @@ __webpack_require__.r(__webpack_exports__);
   __depends__: [
     _behaviors__WEBPACK_IMPORTED_MODULE_1__.default,
     _script_runner__WEBPACK_IMPORTED_MODULE_2__.default,
-    _data_notifications__WEBPACK_IMPORTED_MODULE_0__.default
+    _data_notifications__WEBPACK_IMPORTED_MODULE_0__.default,
+    _exclusive_gateway_settings__WEBPACK_IMPORTED_MODULE_3__.default
   ]
 });
 
