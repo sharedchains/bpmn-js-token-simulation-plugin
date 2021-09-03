@@ -1336,6 +1336,14 @@ function DataExclusiveGatewaySettings(eventBus, elementRegistry, exclusiveGatewa
       contextPads.closeElementContextPads(element);
     }
   });
+  eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.RESET_SIMULATION_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
+    if (this.active) {
+      const exclusiveGateways = this._elementRegistry.filter(element => {
+        return (0,bpmn_js_token_simulation_lib_util_ElementHelper__WEBPACK_IMPORTED_MODULE_2__.is)(element, 'bpmn:ExclusiveGateway');
+      });
+      this.resetSequenceFlows(exclusiveGateways);
+    }
+  });
 }
 
 DataExclusiveGatewaySettings.prototype.resetSequenceFlows = function(exclusiveGateways) {

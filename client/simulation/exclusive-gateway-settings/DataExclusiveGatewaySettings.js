@@ -1,5 +1,9 @@
 import { is } from 'bpmn-js-token-simulation/lib/util/ElementHelper';
-import { ELEMENT_CHANGED_EVENT, TOGGLE_MODE_EVENT } from 'bpmn-js-token-simulation/lib/util/EventHelper';
+import {
+  ELEMENT_CHANGED_EVENT,
+  RESET_SIMULATION_EVENT,
+  TOGGLE_MODE_EVENT
+} from 'bpmn-js-token-simulation/lib/util/EventHelper';
 import { LOW_PRIORITY, TOGGLE_DATA_SIMULATION_EVENT } from '../../events/EventHelper';
 
 const STYLE = getComputedStyle(document.documentElement);
@@ -43,6 +47,14 @@ export default function DataExclusiveGatewaySettings(eventBus, elementRegistry, 
 
     if (this.active && is(element, 'bpmn:ExclusiveGateway')) {
       contextPads.closeElementContextPads(element);
+    }
+  });
+  eventBus.on(RESET_SIMULATION_EVENT, LOW_PRIORITY, () => {
+    if (this.active) {
+      const exclusiveGateways = this._elementRegistry.filter(element => {
+        return is(element, 'bpmn:ExclusiveGateway');
+      });
+      this.resetSequenceFlows(exclusiveGateways);
     }
   });
 }
