@@ -1004,10 +1004,11 @@ ExclusiveGatewayBehavior.prototype.evaluatePromises = function(element, promises
       return true;
     });
   }).catch(error => {
+    const truncate = (input) => input.length > 200 ? `${input.substring(0, 200)}...` : input;
     this._dataNotifications.addElementNotification(element, {
       type: 'error',
       icon: 'fa-exclamation-triangle',
-      text: error.error
+      text: truncate(error.error)
     });
   });
 };

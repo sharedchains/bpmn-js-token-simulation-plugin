@@ -47,7 +47,9 @@
     background-color: var(--token-simulation-silver-darken-94, #EFEFEF);
     color: var(--token-simulation-silver-darken-94, #EFEFEF);
     border-radius: 2px;
-    height: 30px;
+    min-height: 30px;
+    max-height: 100px;
+    width: 1000px;
     box-sizing: border-box;
     display: flex;
     justify-content: center;
@@ -62,7 +64,7 @@
 }
 
 .data-notification .text {
-    white-space: nowrap;
+    align-self: baseline;
 }
 
 .data-notification.error {
