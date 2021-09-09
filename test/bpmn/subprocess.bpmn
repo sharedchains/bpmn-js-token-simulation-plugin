@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_09p03yj" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="4.9.0" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.15.0">
+  <bpmn:process id="Process_0hwd1dl" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1">
+      <bpmn:outgoing>Flow_12c46xf</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="Flow_12c46xf" sourceRef="StartEvent_1" targetRef="Activity_0yojcp8" />
+    <bpmn:endEvent id="Event_0rfwhyk">
+      <bpmn:extensionElements>
+        <camunda:executionListener event="start">
+          <camunda:script scriptFormat="groovy">test che una volta io boh;</camunda:script>
+        </camunda:executionListener>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1hz4n14</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1hz4n14" sourceRef="Activity_151qi9s" targetRef="Event_0rfwhyk" />
+    <bpmn:subProcess id="Activity_151qi9s">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="Input_3fetf43">
+            <camunda:script scriptFormat="groovy">CCCCAAAAAAAAAAAAAAAAA</camunda:script>
+          </camunda:inputParameter>
+          <camunda:inputParameter name="Input_39jj42g">
+            <camunda:script scriptFormat="groovy">fda
+AAAAAA</camunda:script>
+          </camunda:inputParameter>
+          <camunda:inputParameter name="Input_250fjpm">
+            <camunda:script scriptFormat="groovy">BBBBBBBBBBBBBB</camunda:script>
+          </camunda:inputParameter>
+          <camunda:outputParameter name="Output_2ri5756">
+            <camunda:script scriptFormat="groovy">dsfafdsaferweqrewfdsfdsafdsa</camunda:script>
+          </camunda:outputParameter>
+        </camunda:inputOutput>
+        <camunda:executionListener event="start">
+          <camunda:script scriptFormat="groovy">aaa</camunda:script>
+        </camunda:executionListener>
+        <camunda:executionListener event="start">
+          <camunda:script scriptFormat="groovy">bbb</camunda:script>
+        </camunda:executionListener>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1rsi4hs</bpmn:incoming>
+      <bpmn:outgoing>Flow_1hz4n14</bpmn:outgoing>
+      <bpmn:startEvent id="Event_12l4zvj">
+        <bpmn:outgoing>Flow_179e4mg</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:sequenceFlow id="Flow_179e4mg" sourceRef="Event_12l4zvj" targetRef="Activity_0x295ue" />
+      <bpmn:endEvent id="Event_0jsdim5">
+        <bpmn:incoming>Flow_01clkar</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_01clkar" sourceRef="Activity_0x295ue" targetRef="Event_0jsdim5" />
+      <bpmn:userTask id="Activity_0x295ue">
+        <bpmn:extensionElements>
+          <camunda:taskListener event="create">
+            <camunda:script scriptFormat="groovy"></camunda:script>
+          </camunda:taskListener>
+          <camunda:executionListener event="start">
+            <camunda:script scriptFormat="groovy"></camunda:script>
+          </camunda:executionListener>
+        </bpmn:extensionElements>
+        <bpmn:incoming>Flow_179e4mg</bpmn:incoming>
+        <bpmn:outgoing>Flow_01clkar</bpmn:outgoing>
+      </bpmn:userTask>
+    </bpmn:subProcess>
+    <bpmn:task id="Activity_0yojcp8">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="A">
+            <camunda:script scriptFormat="groovy">return 12;</camunda:script>
+          </camunda:inputParameter>
+          <camunda:outputParameter name="B">
+            <camunda:script scriptFormat="groovy">return "B";</camunda:script>
+          </camunda:outputParameter>
+        </camunda:inputOutput>
+        <camunda:executionListener event="end">
+          <camunda:script scriptFormat="groovy"></camunda:script>
+        </camunda:executionListener>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_12c46xf</bpmn:incoming>
+      <bpmn:outgoing>Flow_1rsi4hs</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="Flow_1rsi4hs" sourceRef="Activity_0yojcp8" targetRef="Activity_151qi9s" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_0hwd1dl">
+      <bpmndi:BPMNEdge id="Flow_1rsi4hs_di" bpmnElement="Flow_1rsi4hs">
+        <di:waypoint x="350" y="177" />
+        <di:waypoint x="420" y="177" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1hz4n14_di" bpmnElement="Flow_1hz4n14">
+        <di:waypoint x="780" y="175" />
+        <di:waypoint x="852" y="175" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_12c46xf_di" bpmnElement="Flow_12c46xf">
+        <di:waypoint x="188" y="177" />
+        <di:waypoint x="250" y="177" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_1">
+        <dc:Bounds x="152" y="159" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0rfwhyk_di" bpmnElement="Event_0rfwhyk">
+        <dc:Bounds x="852" y="157" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1om5vbj_di" bpmnElement="Activity_151qi9s" isExpanded="true">
+        <dc:Bounds x="420" y="72" width="360" height="210" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_01clkar_di" bpmnElement="Flow_01clkar">
+        <di:waypoint x="660" y="172" />
+        <di:waypoint x="712" y="172" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_179e4mg_di" bpmnElement="Flow_179e4mg">
+        <di:waypoint x="508" y="172" />
+        <di:waypoint x="560" y="172" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Event_12l4zvj_di" bpmnElement="Event_12l4zvj">
+        <dc:Bounds x="472" y="154" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0jsdim5_di" bpmnElement="Event_0jsdim5">
+        <dc:Bounds x="712" y="154" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1049ogv_di" bpmnElement="Activity_0x295ue">
+        <dc:Bounds x="560" y="132" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0yojcp8_di" bpmnElement="Activity_0yojcp8">
+        <dc:Bounds x="250" y="137" width="100" height="80" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

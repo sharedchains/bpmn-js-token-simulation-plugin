@@ -75,6 +75,9 @@ export default class Data {
 
   #getProcessOrParticipantElement(element) {
     let bo = getBusinessObject(element);
+    if (!bo) {
+      return;
+    }
 
     if (is(element, 'bpmn:Process') || is(element, 'bpmn:Participant')) {
       return bo;
@@ -93,14 +96,17 @@ export default class Data {
 
   #getRootProcess(businessObject) {
     let parent = businessObject;
+    if (!businessObject) {
+      return;
+    }
     while (parent.$parent && !is(parent, 'bpmn:Process')) {
       parent = parent.$parent;
     }
     return parent;
   }
 
-  getDataObject(element) {
-    return this._data.find(obj => obj.element.id === element.id);
+  getDataObject(rootElement) {
+    return this._data.find(obj => obj.element.id === rootElement.id);
   }
 
   setDataSimulationMap(element, map) {
