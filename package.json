@@ -4,7 +4,7 @@
   "description": "bpmn-js Token Simulation plug-in for the Camunda Modeler",
   "main": "index.js",
   "scripts": {
-    "all": "run-s bundle",
+    "all": "run-s test bundle",
     "bundle": "webpack",
     "bundle:watch": "webpack -w",
     "prepublishOnly": "run-s bundle",
@@ -25,6 +25,7 @@
     "bpmn-js": "^8.6.0",
     "bpmn-js-properties-panel": "^0.43.1",
     "bpmn-js-token-simulation": "^0.21.1",
+    "camunda-bpmn-moddle": "^5.1.2",
     "camunda-modeler-plugin-helpers": "^2.1.0",
     "chai": "^4.3.4",
     "copy-webpack-plugin": "^8.1.1",

@@ -12,9 +12,9 @@ export default function ToggleData(eventBus, tokenSimulationPalette) {
   this._active = false;
   eventBus.on(CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, () => {
     this._active = true;
-  });
 
-  this._init();
+    this._init();
+  });
 }
 
 ToggleData.prototype._init = function() {

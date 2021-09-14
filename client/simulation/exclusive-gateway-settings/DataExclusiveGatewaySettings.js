@@ -4,7 +4,7 @@ import {
   RESET_SIMULATION_EVENT,
   TOGGLE_MODE_EVENT
 } from 'bpmn-js-token-simulation/lib/util/EventHelper';
-import { LOW_PRIORITY, TOGGLE_DATA_SIMULATION_EVENT } from '../../events/EventHelper';
+import { CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, TOGGLE_DATA_SIMULATION_EVENT } from '../../events/EventHelper';
 
 const STYLE = getComputedStyle(document.documentElement);
 const DEFAULT_COLOR = STYLE.getPropertyValue('--token-simulation-grey-darken-30');
@@ -14,9 +14,15 @@ export default function DataExclusiveGatewaySettings(eventBus, elementRegistry, 
   this._exclusiveGatewaySettings = exclusiveGatewaySettings;
   this._contextPads = contextPads;
 
+  this.dataActive = false;
   this.active = false;
+
+  eventBus.on(CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, () => {
+    this.dataActive = true;
+  });
+
   eventBus.on(TOGGLE_MODE_EVENT, LOW_PRIORITY, context => {
-    if (context.active) {
+    if (this.dataActive && context.active) {
       this.active = context.active;
       const exclusiveGateways = this._elementRegistry.filter(element => {
         return is(element, 'bpmn:ExclusiveGateway');
@@ -25,18 +31,20 @@ export default function DataExclusiveGatewaySettings(eventBus, elementRegistry, 
     }
   });
   eventBus.on(TOGGLE_DATA_SIMULATION_EVENT, context => {
-    this.active = context.active;
+    if (this.dataActive){
+      this.active = context.active;
 
-    const exclusiveGateways = this._elementRegistry.filter(element => {
-      return is(element, 'bpmn:ExclusiveGateway');
-    });
-    if (this.active) {
-      this.resetSequenceFlows(exclusiveGateways);
-    } else {
-      this._exclusiveGatewaySettings.setSequenceFlowsDefault();
-      exclusiveGateways.forEach(exclusiveGateway => {
-        contextPads.openElementContextPads(exclusiveGateway);
+      const exclusiveGateways = this._elementRegistry.filter(element => {
+        return is(element, 'bpmn:ExclusiveGateway');
       });
+      if (this.active) {
+        this.resetSequenceFlows(exclusiveGateways);
+      } else {
+        this._exclusiveGatewaySettings.setSequenceFlowsDefault();
+        exclusiveGateways.forEach(exclusiveGateway => {
+          contextPads.openElementContextPads(exclusiveGateway);
+        });
+      }
     }
   });
 
@@ -45,12 +53,12 @@ export default function DataExclusiveGatewaySettings(eventBus, elementRegistry, 
       element
     } = event;
 
-    if (this.active && is(element, 'bpmn:ExclusiveGateway')) {
+    if (this.dataActive && this.active && is(element, 'bpmn:ExclusiveGateway')) {
       contextPads.closeElementContextPads(element);
     }
   });
   eventBus.on(RESET_SIMULATION_EVENT, LOW_PRIORITY, () => {
-    if (this.active) {
+    if (this.dataActive && this.active) {
       const exclusiveGateways = this._elementRegistry.filter(element => {
         return is(element, 'bpmn:ExclusiveGateway');
       });

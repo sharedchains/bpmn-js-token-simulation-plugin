@@ -87,7 +87,7 @@ export default class Data {
     let collaboration = findRootElementsByType(bo, 'bpmn:Collaboration');
 
     if (collaboration.length > 0) {
-      let participants = collaboration[0].participants.filter(participant => participant.processRef.id === rootProcess.id);
+      let participants = collaboration[0].participants.filter(participant => participant.processRef?.id === rootProcess.id);
       return participants[0];
     } else {
       return rootProcess;

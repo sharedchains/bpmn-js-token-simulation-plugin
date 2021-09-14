@@ -2,14 +2,32 @@ import Modeler from 'bpmn-js/lib/Modeler';
 
 import SimulationModule from 'bpmn-js-token-simulation';
 import DataModule from '../../client/data';
+import DataSimulationModule from '../../client/simulation';
+
+import moddleMock from '../mocks/data.json';
+import camundaModdle from 'camunda-bpmn-moddle/resources/camunda.json';
+
+import { bootstrapModeler, inject, getBpmnJS } from 'test/TestHelper';
+import { assign, forEach } from 'min-dash';
+import { query as domQuery } from 'min-dom';
+
+import { SCOPE_CREATE_EVENT, SCOPE_DESTROYED_EVENT, TRACE_EVENT } from 'bpmn-js-token-simulation/lib/util/EventHelper';
+import { is } from 'bpmn-js-token-simulation/lib/simulator/behaviors/ModelUtil';
 
 import {
-  bootstrapModeler,
-  inject
-} from 'test/TestHelper';
+  CODE_EDITOR_PLUGIN_PRESENT_EVENT,
+  HIGH_PRIORITY,
+  RUN_CODE_EVALUATION_EVENT, TOGGLE_DATA_SIMULATION_EVENT
+} from '../../client/events/EventHelper';
+
+const VERY_HIGH_PRIORITY = 100000;
+
+import eventTypes from '../../client/events/EventHelper';
+import * as AllEvents from 'bpmn-js-token-simulation/lib/util/EventHelper';
 
 import multiParticipantDiagram from '../bpmn/multiparticipant.bpmn';
-import { SCOPE_CREATE_EVENT } from 'bpmn-js-token-simulation/lib/util/EventHelper';
+
+const ENTER_EVENT = 'trace.elementEnter';
 
 describe('DataTokenSimulation module test', () => {
 
@@ -17,15 +35,43 @@ describe('DataTokenSimulation module test', () => {
     beforeEach(bootstrapModeler(diagram, {
       additionalModules: [].concat(Modeler.prototype._modules).concat([
         SimulationModule,
-        DataModule
+        DataModule,
+        DataSimulationModule,
+        TestModule
       ]),
       keyboard: {
         bindTo: document
+      },
+      moddleExtensions: {
+        camunda: camundaModdle,
+        data: moddleMock
       }
     }));
   }
 
-  describe('Data simulation', () => {
+  function mockCodeEditor(eventBus, callback) {
+    eventBus.once(RUN_CODE_EVALUATION_EVENT, HIGH_PRIORITY, (_event, _code, context) => {
+      return callback(context);
+    });
+  }
+
+  const TestModule = {
+    __init__: [
+      function(eventBus, animation) {
+        animation.setAnimationSpeed(100);
+
+        eventBus.on(TRACE_EVENT, function(event) {
+
+          if (event.action === 'enter') {
+            eventBus.fire(ENTER_EVENT, event);
+          }
+        });
+      }
+    ],
+    trace: ['type', Log]
+  };
+
+  describe('Data object', () => {
     bootstrapDiagram(multiParticipantDiagram);
 
     it('should load data module', function(done) {
@@ -291,4 +337,297 @@ describe('DataTokenSimulation module test', () => {
 
   });
 
+  describe('Data simulation', () => {
+    bootstrapDiagram(multiParticipantDiagram);
+
+    beforeEach(inject(async function(eventBus) {
+      eventBus.fire(CODE_EDITOR_PLUGIN_PRESENT_EVENT);
+      await new Promise(r => setTimeout(r, 100));
+      eventBus.fire(TOGGLE_DATA_SIMULATION_EVENT, { active: true });
+    }));
+
+    beforeEach(inject(function(toggleMode, trace) {
+      toggleMode.toggleMode();
+
+      trace.start();
+    }));
+
+    it('should complete process, running scripts',
+      inject(async function(eventBus, elementRegistry, dataTokenSimulation) {
+        mockCodeEditor(eventBus, (context) => {
+          return { output: 'true', context };
+        });
+        let startEvent = elementRegistry.get('StartEvent_1');
+
+        dataTokenSimulation.addDataElement(startEvent);
+        dataTokenSimulation.updateDataElement(startEvent, { name: 'A', value: 1, type: 'INTEGER' }, 0);
+
+        // when
+        triggerElement('StartEvent_1');
+
+        await elementEnter('EX_Gateway');
+        elementEnter('B').then(() => {
+          mockCodeEditor(eventBus, (context) => {
+            return { output: '20', context };
+          });
+        });
+
+        await elementEnter('Script_1');
+        elementEnter('Flow_4').then(() => {
+          mockCodeEditor(eventBus, (context) => {
+            return { output: '3', context };
+          });
+        });
+
+        await elementEnter('Script_2');
+        elementEnter('Flow_5').then(() => {
+          mockCodeEditor(eventBus, (context) => {
+            return { output: '-4', context };
+          });
+        });
+
+        await elementEnter('Script_3');
+        elementEnter('Flow_6').then(() => {
+          mockCodeEditor(eventBus, (context) => {
+            return { output: '15', context };
+          });
+        });
+
+        await elementEnter('Script_4');
+        await scopeDestroyed();
+
+        expectHistory([
+          'StartEvent_1',
+          'Flow_1',
+          'SENDER',
+          'Flow_2',
+          'START_MESSAGE',
+          'Flow_3',
+          'EX_Gateway',
+          'B',
+          'Script_1',
+          'Flow_4',
+          'End_Agt0',
+          'Script_2',
+          'Flow_5',
+          'Script_3',
+          'Flow_6',
+          'Script_4',
+          'Flow_7',
+          'End_Script'
+        ]);
+      })
+    );
+  });
+
 });
+
+/**
+ * @license
+ * Copyright 2014-present Camunda
+ * SPDX-License-Identifier: MIT
+ */
+
+// helpers //////////
+
+function Log(eventBus) {
+  this.eventBus = eventBus;
+
+  this.events = [];
+
+  this._log = this._log.bind(this);
+}
+
+Log.prototype._log = function(event) {
+  this.events.push(assign({}, event));
+};
+
+Log.prototype.start = function() {
+  forEach(AllEvents, event => {
+    this.eventBus.on(event, VERY_HIGH_PRIORITY, this._log);
+  });
+  forEach(eventTypes, event => {
+    this.eventBus.on(event, VERY_HIGH_PRIORITY, this._log);
+  });
+};
+
+Log.prototype.stop = function() {
+  forEach(AllEvents, event => {
+    this.eventBus.on(event, this._log);
+  });
+  forEach(eventTypes, event => {
+    this.eventBus.on(event, this._log);
+  });
+};
+
+Log.prototype.clear = function() {
+  this.stop();
+
+  this.events = [];
+};
+
+Log.prototype.getAll = function() {
+  return this.events;
+};
+
+function ifElement(id, fn) {
+  return function(event) {
+    var element = event.element;
+
+    if (element.id === id) {
+      fn(event);
+    }
+  };
+}
+
+function triggerElement(id) {
+
+  return getBpmnJS().invoke(function(bpmnjs) {
+
+    const domElement = domQuery(
+      `.djs-overlays[data-container-id="${id}"] .context-pad`,
+      bpmnjs._container
+    );
+
+    if (!domElement) {
+      throw new Error(`no context pad on on <${id}>`);
+    }
+
+    triggerClick(domElement);
+  });
+}
+
+function triggerScope(scope) {
+
+  return getBpmnJS().invoke(function(bpmnjs) {
+
+    const domElement = domQuery(
+      `.token-simulation-scopes [data-scope-id="${scope.id}"]`,
+      bpmnjs._container
+    );
+
+    if (!domElement) {
+      throw new Error(`no scope toggle for <${scope.id}>`);
+    }
+
+    triggerClick(domElement);
+  });
+}
+
+function scopeDestroyed(scope = null) {
+
+  return new Promise(resolve => {
+
+    return getBpmnJS().invoke(function(eventBus) {
+
+      const listener = function(event) {
+
+        if (scope && event.scope !== scope) {
+          return;
+        }
+
+        const scopeElements = [
+          'bpmn:Participant',
+          'bpmn:Process',
+          'bpmn:SubProcess'
+        ];
+
+        if (scopeElements.every(t => !is(event.scope.element, t))) {
+          return;
+        }
+
+        eventBus.off(SCOPE_DESTROYED_EVENT, listener);
+
+        return resolve(event);
+      };
+
+      eventBus.on(SCOPE_DESTROYED_EVENT, listener);
+    });
+  });
+}
+
+function elementEnter(id = null) {
+
+  return new Promise(resolve => {
+
+    return getBpmnJS().invoke(function(eventBus) {
+
+      const wrap = id ? (fn) => ifElement(id, fn) : fn => fn;
+
+      const listener = wrap(function(event) {
+        eventBus.off(ENTER_EVENT, listener);
+
+        return resolve(event);
+      });
+
+      eventBus.on(ENTER_EVENT, listener);
+    });
+  });
+}
+
+function expectHistory(history) {
+
+  return getBpmnJS().invoke(function(trace) {
+    const events = trace.getAll()
+      .filter(function(event) {
+        return (
+          (event.action === 'exit' && is(event.element, 'bpmn:StartEvent')) ||
+          (event.action === 'enter')
+        );
+      })
+      .map(function(event) {
+        return event.element.id;
+      });
+
+    expect(events).to.eql(history);
+
+    // console.log(JSON.stringify(events));
+    // console.log(JSON.stringify(history));
+    // console.log(JSON.stringify(trace.getAll().filter(e => e.element).map(event => {
+    //   return {
+    //     id: event.element.id,
+    //     action: event.action
+    //   };
+    // })));
+  });
+
+}
+
+function triggerClick(element, options = {}) {
+
+  const defaultOptions = {
+    pointerX: 0,
+    pointerY: 0,
+    button: 0,
+    ctrlKey: false,
+    altKey: false,
+    shiftKey: false,
+    metaKey: false,
+    bubbles: true,
+    cancelable: true
+  };
+
+  options = Object.assign({}, defaultOptions, options);
+
+  const event = document.createEvent('MouseEvents');
+
+  event.initMouseEvent(
+    'click',
+    options.bubbles,
+    options.cancelable,
+    document.defaultView,
+    options.button,
+    options.pointerX,
+    options.pointerY,
+    options.pointerX,
+    options.pointerY,
+    options.ctrlKey,
+    options.altKey,
+    options.shiftKey,
+    options.metaKey,
+    options.button,
+    element
+  );
+
+  element.dispatchEvent(event);
+}

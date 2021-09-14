@@ -24,10 +24,12 @@ module.exports = function(karma) {
 
     frameworks: [
       'mocha',
-      'sinon-chai'
+      'sinon-chai',
+      'webpack'
     ],
 
     files: [
+      { pattern: 'client/assets/**/*', included: false, served: true },
       suite
     ],
 
@@ -38,9 +40,16 @@ module.exports = function(karma) {
     reporters: [ 'progress' ],
 
     browsers: browsers,
+    browserNoActivityTimeout: 30000,
 
     autoWatch: false,
     singleRun: true,
+
+    client: {
+      mocha: {
+        timeout: 10000
+      }
+    },
 
     webpack: {
       mode: 'development',
