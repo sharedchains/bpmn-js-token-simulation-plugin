@@ -1328,19 +1328,22 @@ function DataExclusiveGatewaySettings(eventBus, elementRegistry, exclusiveGatewa
 
   eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
     this.dataActive = true;
+    this.active = true;
   });
 
   eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_MODE_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, context => {
-    if (this.dataActive && context.active) {
-      this.active = context.active;
+    if (context.active && this.dataActive) {
       const exclusiveGateways = this._elementRegistry.filter(element => {
         return (0,bpmn_js_token_simulation_lib_util_ElementHelper__WEBPACK_IMPORTED_MODULE_2__.is)(element, 'bpmn:ExclusiveGateway');
       });
-      this.resetSequenceFlows(exclusiveGateways);
+      if (context.active && this.active) {
+        this.resetSequenceFlows(exclusiveGateways);
+      }
     }
   });
+
   eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_DATA_SIMULATION_EVENT, context => {
-    if (this.dataActive){
+    if (this.dataActive) {
       this.active = context.active;
 
       const exclusiveGateways = this._elementRegistry.filter(element => {

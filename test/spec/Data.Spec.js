@@ -16,17 +16,18 @@ import { is } from 'bpmn-js-token-simulation/lib/simulator/behaviors/ModelUtil';
 
 import {
   CODE_EDITOR_PLUGIN_PRESENT_EVENT,
-  HIGH_PRIORITY,
+  HIGH_PRIORITY, LOW_PRIORITY,
   RUN_CODE_EVALUATION_EVENT, TOGGLE_DATA_SIMULATION_EVENT
 } from '../../client/events/EventHelper';
-
-const VERY_HIGH_PRIORITY = 100000;
 
 import eventTypes from '../../client/events/EventHelper';
 import * as AllEvents from 'bpmn-js-token-simulation/lib/util/EventHelper';
 
 import multiParticipantDiagram from '../bpmn/multiparticipant.bpmn';
+import exGatewayDiagram from '../bpmn/exclusiveGateway.bpmn';
+import scriptsDiagram from '../bpmn/scripts.bpmn';
 
+const VERY_HIGH_PRIORITY = 100000;
 const ENTER_EVENT = 'trace.elementEnter';
 
 describe('DataTokenSimulation module test', () => {
@@ -338,86 +339,195 @@ describe('DataTokenSimulation module test', () => {
   });
 
   describe('Data simulation', () => {
-    bootstrapDiagram(multiParticipantDiagram);
 
-    beforeEach(inject(async function(eventBus) {
-      eventBus.fire(CODE_EDITOR_PLUGIN_PRESENT_EVENT);
-      await new Promise(r => setTimeout(r, 100));
-      eventBus.fire(TOGGLE_DATA_SIMULATION_EVENT, { active: true });
-    }));
+    function bootstrapDiagramWithDataEnabled(diagram) {
+      bootstrapDiagram(diagram);
 
-    beforeEach(inject(function(toggleMode, trace) {
-      toggleMode.toggleMode();
+      beforeEach(inject(async function(eventBus) {
+        eventBus.fire(CODE_EDITOR_PLUGIN_PRESENT_EVENT);
+        await new Promise(r => setTimeout(r, 100));
+        eventBus.fire(TOGGLE_DATA_SIMULATION_EVENT, { active: true });
+      }));
 
-      trace.start();
-    }));
+      beforeEach(inject(function(toggleMode, trace) {
+        toggleMode.toggleMode();
 
-    it('should complete process, running scripts',
-      inject(async function(eventBus, elementRegistry, dataTokenSimulation) {
-        mockCodeEditor(eventBus, (context) => {
-          return { output: 'true', context };
-        });
-        let startEvent = elementRegistry.get('StartEvent_1');
+        trace.start();
+      }));
+    }
 
-        dataTokenSimulation.addDataElement(startEvent);
-        dataTokenSimulation.updateDataElement(startEvent, { name: 'A', value: 1, type: 'INTEGER' }, 0);
+    describe('Exclusive Gateway Script Evaluation', () => {
+      bootstrapDiagramWithDataEnabled(exGatewayDiagram);
 
-        // when
-        triggerElement('StartEvent_1');
-
-        await elementEnter('EX_Gateway');
-        elementEnter('B').then(() => {
+      it('should complete process, running scripts',
+        inject(async function(eventBus, elementRegistry, dataTokenSimulation) {
           mockCodeEditor(eventBus, (context) => {
-            return { output: '20', context };
+            return { output: 'true', context };
           });
-        });
+          let startEvent = elementRegistry.get('StartEvent_1');
 
-        await elementEnter('Script_1');
-        elementEnter('Flow_4').then(() => {
+          dataTokenSimulation.addDataElement(startEvent);
+          dataTokenSimulation.updateDataElement(startEvent, { name: 'A', value: 1, type: 'INTEGER' }, 0);
+
+          // when
+          triggerElement('StartEvent_1');
+
+          await scopeDestroyed();
+
+          expectHistory([
+            'StartEvent_1',
+            'Flow_1',
+            'EX_Gateway',
+            'B',
+            'End_B',
+          ]);
+        })
+      );
+
+      it('should show error, running scripts',
+        inject(async function(eventBus, overlays) {
+
+          eventBus.on(RUN_CODE_EVALUATION_EVENT, LOW_PRIORITY, (_event, _code, context) => {
+            return { output: undefined, error: 'SHOULD SHOW ERROR', context };
+          });
+
+          // when
+          triggerElement('StartEvent_1');
+
+          await elementEnter('EX_Gateway');
+          await new Promise(r => setTimeout(r, 500));
+
+          expectHistory([
+            'StartEvent_1',
+            'Flow_1',
+            'EX_Gateway'
+          ]);
+
+          let overlay = overlays.get({type: 'data-notification'});
+          expect(overlay).to.not.be.empty;
+        })
+      );
+
+      it('should complete process, without running scripts',
+        inject(async function(eventBus) {
+
+          // given
+          eventBus.fire(TOGGLE_DATA_SIMULATION_EVENT, { active: false });
+
+          // when
+          triggerElement('StartEvent_1');
+
+          await scopeDestroyed();
+
+          // then
+          expectHistory([
+            'StartEvent_1',
+            'Flow_1',
+            'EX_Gateway',
+            'A',
+            'End_A'
+          ]);
+        })
+      );
+
+      it('should choose secondary flow, without running scripts',
+        inject(async function(eventBus) {
+          // given
+          eventBus.fire(TOGGLE_DATA_SIMULATION_EVENT, { active: false });
+
+          triggerElement('EX_Gateway');
+          triggerElement('EX_Gateway');
+          // when
+          triggerElement('StartEvent_1');
+
+          await scopeDestroyed();
+
+          // then
+          expectHistory([
+            'StartEvent_1',
+            'Flow_1',
+            'EX_Gateway',
+            'C',
+            'End_C'
+          ]);
+        })
+      );
+    });
+
+    describe('Scripts Evaluation', () => {
+      bootstrapDiagramWithDataEnabled(scriptsDiagram);
+
+      it('should complete process, running scripts',
+        inject(async function(eventBus, elementRegistry, dataTokenSimulation) {
           mockCodeEditor(eventBus, (context) => {
             return { output: '3', context };
           });
-        });
+          let startEvent = elementRegistry.get('StartEvent_1');
 
-        await elementEnter('Script_2');
-        elementEnter('Flow_5').then(() => {
-          mockCodeEditor(eventBus, (context) => {
-            return { output: '-4', context };
+          dataTokenSimulation.addDataElement(startEvent);
+          dataTokenSimulation.updateDataElement(startEvent, { name: 'A', value: 1, type: 'INTEGER' }, 0);
+
+          // when
+          triggerElement('StartEvent_1');
+
+          await elementEnter('Script_1');
+          elementEnter('Flow_2').then(() => {
+            mockCodeEditor(eventBus, (context) => {
+              return { output: '3', context };
+            });
           });
-        });
 
-        await elementEnter('Script_3');
-        elementEnter('Flow_6').then(() => {
-          mockCodeEditor(eventBus, (context) => {
-            return { output: '15', context };
+          await elementEnter('Script_2');
+          elementEnter('Flow_3').then(() => {
+            mockCodeEditor(eventBus, (context) => {
+              return { output: '-4', context };
+            });
           });
-        });
 
-        await elementEnter('Script_4');
-        await scopeDestroyed();
+          await elementEnter('Script_3');
+          await scopeDestroyed();
 
-        expectHistory([
-          'StartEvent_1',
-          'Flow_1',
-          'SENDER',
-          'Flow_2',
-          'START_MESSAGE',
-          'Flow_3',
-          'EX_Gateway',
-          'B',
-          'Script_1',
-          'Flow_4',
-          'End_Agt0',
-          'Script_2',
-          'Flow_5',
-          'Script_3',
-          'Flow_6',
-          'Script_4',
-          'Flow_7',
-          'End_Script'
-        ]);
-      })
-    );
+          expectHistory([
+            'StartEvent_1',
+            'Flow_1',
+            'Script_1',
+            'Flow_2',
+            'Script_2',
+            'Flow_3',
+            'Script_3',
+            'Flow_4',
+            'EndEvent'
+          ]);
+        })
+      );
+
+      it('should show error, running scripts',
+        inject(async function(eventBus, overlays) {
+
+          eventBus.on(RUN_CODE_EVALUATION_EVENT, LOW_PRIORITY, (_event, _code, context) => {
+            return { output: undefined, error: 'SHOULD SHOW ERROR', context };
+          });
+
+          // when
+          triggerElement('StartEvent_1');
+
+          await elementEnter('Script_1');
+          await new Promise(r => setTimeout(r, 500));
+
+          expectHistory([
+            'StartEvent_1',
+            'Flow_1',
+            'Script_1'
+          ]);
+
+          let overlay = overlays.get({type: 'data-notification'});
+          expect(overlay).to.not.be.empty;
+        })
+      );
+
+
+    });
+
   });
 
 });
@@ -497,23 +607,6 @@ function triggerElement(id) {
   });
 }
 
-function triggerScope(scope) {
-
-  return getBpmnJS().invoke(function(bpmnjs) {
-
-    const domElement = domQuery(
-      `.token-simulation-scopes [data-scope-id="${scope.id}"]`,
-      bpmnjs._container
-    );
-
-    if (!domElement) {
-      throw new Error(`no scope toggle for <${scope.id}>`);
-    }
-
-    triggerClick(domElement);
-  });
-}
-
 function scopeDestroyed(scope = null) {
 
   return new Promise(resolve => {
@@ -581,14 +674,6 @@ function expectHistory(history) {
 
     expect(events).to.eql(history);
 
-    // console.log(JSON.stringify(events));
-    // console.log(JSON.stringify(history));
-    // console.log(JSON.stringify(trace.getAll().filter(e => e.element).map(event => {
-    //   return {
-    //     id: event.element.id,
-    //     action: event.action
-    //   };
-    // })));
   });
 
 }

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1pm5kl2" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="4.9.0" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.15.0">
+  <bpmn:process id="Process_0q6bsxw" isExecutable="true">
+    <bpmn:exclusiveGateway id="EX_Gateway" name="Evaluate A" default="A">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>A</bpmn:outgoing>
+      <bpmn:outgoing>B</bpmn:outgoing>
+      <bpmn:outgoing>C</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_A">
+      <bpmn:incoming>A</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_B">
+      <bpmn:incoming>B</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_C">
+      <bpmn:incoming>C</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="A" name="Default" sourceRef="EX_Gateway" targetRef="End_A" />
+    <bpmn:sequenceFlow id="B" name="A &#62; 0" sourceRef="EX_Gateway" targetRef="End_B">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${A&gt;0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="C" name="Script false" sourceRef="EX_Gateway" targetRef="End_C">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" language="groovy">return false;</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:startEvent id="StartEvent_1">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="EX_Gateway" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_0q6bsxw">
+      <bpmndi:BPMNEdge id="Flow_045iz8u_di" bpmnElement="A" bioc:stroke="#000" bioc:fill="#fff">
+        <di:waypoint x="270" y="232" />
+        <di:waypoint x="270" y="140" />
+        <di:waypoint x="392" y="140" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="282" y="168" width="36" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_09cft0y_di" bpmnElement="C" bioc:stroke="#000" bioc:fill="#fff">
+        <di:waypoint x="270" y="282" />
+        <di:waypoint x="270" y="360" />
+        <di:waypoint x="392" y="360" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="302" y="338" width="55" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_086mzx0_di" bpmnElement="B" bioc:stroke="#000" bioc:fill="#fff">
+        <di:waypoint x="295" y="257" />
+        <di:waypoint x="392" y="257" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="331" y="239" width="25" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0tyy201_di" bpmnElement="Flow_1">
+        <di:waypoint x="188" y="257" />
+        <di:waypoint x="245" y="257" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Event_11fzhed_di" bpmnElement="End_B" bioc:stroke="#000" bioc:fill="#fff">
+        <dc:Bounds x="392" y="239" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_16uc40h_di" bpmnElement="EX_Gateway" isMarkerVisible="true" bioc:stroke="#000" bioc:fill="#fff">
+        <dc:Bounds x="245" y="232" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="244" y="289" width="54" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0hyb8yr_di" bpmnElement="End_C" bioc:stroke="#000" bioc:fill="#fff">
+        <dc:Bounds x="392" y="342" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0wn38nd_di" bpmnElement="End_A" bioc:stroke="#000" bioc:fill="#fff">
+        <dc:Bounds x="392" y="122" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1imfjyq_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="152" y="239" width="36" height="36" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

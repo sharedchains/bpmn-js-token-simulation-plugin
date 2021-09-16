@@ -3,40 +3,41 @@
   <bpmn:collaboration id="Collaboration_1ubb85y">
     <bpmn:participant id="P_A" processRef="Process_1hfqcez" />
     <bpmn:participant id="P_B" processRef="Process_16c6m92" />
-    <bpmn:messageFlow id="MFlow_1" sourceRef="SENDER" targetRef="START_MESSAGE" />
+    <bpmn:messageFlow id="Flow_0warryy" sourceRef="ITE_1" targetRef="START_MESSAGE" />
   </bpmn:collaboration>
   <bpmn:process id="Process_1hfqcez" isExecutable="true">
     <bpmn:startEvent id="StartEvent_1" name="Start">
       <bpmn:outgoing>Flow_1</bpmn:outgoing>
     </bpmn:startEvent>
-    <bpmn:sendTask id="SENDER" name="Send message">
-      <bpmn:incoming>Flow_1</bpmn:incoming>
-      <bpmn:outgoing>Flow_2</bpmn:outgoing>
-    </bpmn:sendTask>
-    <bpmn:endEvent id="End_Agt0">
-      <bpmn:incoming>B</bpmn:incoming>
-    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="C" name="Script false" sourceRef="EX_Gateway" targetRef="End_false">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" language="groovy">return false;</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="EX_Gateway" />
     <bpmn:exclusiveGateway id="EX_Gateway" name="Evaluate A" default="A">
-      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:outgoing>B</bpmn:outgoing>
       <bpmn:outgoing>C</bpmn:outgoing>
       <bpmn:outgoing>A</bpmn:outgoing>
     </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="B" name="A &#62; 0" sourceRef="EX_Gateway" targetRef="ITE_1">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${A&gt;0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="A" name="Default" sourceRef="EX_Gateway" targetRef="End_Default" />
     <bpmn:endEvent id="End_false">
       <bpmn:incoming>C</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:endEvent id="End_Default">
       <bpmn:incoming>A</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:sequenceFlow id="C" name="Script false" sourceRef="EX_Gateway" targetRef="End_false">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" language="groovy">return false;</bpmn:conditionExpression>
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="B" name="A &#62; 0" sourceRef="EX_Gateway" targetRef="End_Agt0">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${A&gt;0}</bpmn:conditionExpression>
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="Flow_2" sourceRef="SENDER" targetRef="EX_Gateway" />
-    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="SENDER" />
-    <bpmn:sequenceFlow id="A" name="Default" sourceRef="EX_Gateway" targetRef="End_Default" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="ITE_1" targetRef="End_Agt0" />
+    <bpmn:endEvent id="End_Agt0">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:intermediateThrowEvent id="ITE_1">
+      <bpmn:incoming>B</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_15r1is1" />
+    </bpmn:intermediateThrowEvent>
   </bpmn:process>
   <bpmn:process id="Process_16c6m92" isExecutable="true">
     <bpmn:startEvent id="START_MESSAGE">
@@ -80,36 +81,36 @@ return B</bpmn:script>
       <bpmndi:BPMNShape id="Participant_1eh2alx_di" bpmnElement="P_A" isHorizontal="true" bioc:stroke="#000" bioc:fill="#fff">
         <dc:Bounds x="129" y="80" width="961" height="360" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_121jrkv_di" bpmnElement="A" bioc:stroke="#000" bioc:fill="#fff">
-        <di:waypoint x="490" y="252" />
-        <di:waypoint x="490" y="120" />
-        <di:waypoint x="612" y="120" />
+      <bpmndi:BPMNEdge id="Flow_1i5zgk5_di" bpmnElement="C" bioc:stroke="#000" bioc:fill="#fff">
+        <di:waypoint x="310" y="302" />
+        <di:waypoint x="310" y="400" />
+        <di:waypoint x="392" y="400" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="502" y="163" width="36" height="14" />
+          <dc:Bounds x="162" y="378" width="55" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1bopjo3_di" bpmnElement="Flow_1" bioc:stroke="#000" bioc:fill="#fff">
+      <bpmndi:BPMNEdge id="Flow_1jh124s_di" bpmnElement="Flow_1">
         <di:waypoint x="215" y="277" />
-        <di:waypoint x="270" y="277" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0zbkkjv_di" bpmnElement="Flow_2" bioc:stroke="#000" bioc:fill="#fff">
-        <di:waypoint x="370" y="277" />
-        <di:waypoint x="465" y="277" />
+        <di:waypoint x="285" y="277" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_1thv1id_di" bpmnElement="B" bioc:stroke="#000" bioc:fill="#fff">
-        <di:waypoint x="515" y="277" />
-        <di:waypoint x="612" y="277" />
+        <di:waypoint x="335" y="277" />
+        <di:waypoint x="502" y="277" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="551" y="259" width="25" height="14" />
+          <dc:Bounds x="377" y="259" width="25" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1i5zgk5_di" bpmnElement="C" bioc:stroke="#000" bioc:fill="#fff">
-        <di:waypoint x="490" y="302" />
-        <di:waypoint x="490" y="400" />
-        <di:waypoint x="612" y="400" />
+      <bpmndi:BPMNEdge id="Flow_121jrkv_di" bpmnElement="A" bioc:stroke="#000" bioc:fill="#fff">
+        <di:waypoint x="310" y="252" />
+        <di:waypoint x="310" y="140" />
+        <di:waypoint x="392" y="140" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="522" y="378" width="55" height="14" />
+          <dc:Bounds x="322" y="175" width="36" height="14" />
         </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0adli8v_di" bpmnElement="Flow_2">
+        <di:waypoint x="538" y="277" />
+        <di:waypoint x="622" y="277" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_1" bioc:stroke="#000" bioc:fill="#fff">
         <dc:Bounds x="179" y="259" width="36" height="36" />
@@ -117,23 +118,23 @@ return B</bpmn:script>
           <dc:Bounds x="185" y="302" width="25" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Activity_1mimdib_di" bpmnElement="SENDER" bioc:stroke="#000" bioc:fill="#fff">
-        <dc:Bounds x="270" y="237" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_0nbm7z6_di" bpmnElement="End_Agt0" bioc:stroke="#000" bioc:fill="#fff">
-        <dc:Bounds x="612" y="259" width="36" height="36" />
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Gateway_0lrvses_di" bpmnElement="EX_Gateway" isMarkerVisible="true" bioc:stroke="#000" bioc:fill="#fff">
-        <dc:Bounds x="465" y="252" width="50" height="50" />
+        <dc:Bounds x="285" y="252" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="464" y="309" width="54" height="14" />
+          <dc:Bounds x="283" y="228" width="54" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_0yetvud_di" bpmnElement="End_false" bioc:stroke="#000" bioc:fill="#fff">
-        <dc:Bounds x="612" y="382" width="36" height="36" />
+        <dc:Bounds x="392" y="382" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_0rrmyeg_di" bpmnElement="End_Default" bioc:stroke="#000" bioc:fill="#fff">
-        <dc:Bounds x="612" y="102" width="36" height="36" />
+        <dc:Bounds x="392" y="122" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0nbm7z6_di" bpmnElement="End_Agt0" bioc:stroke="#000" bioc:fill="#fff">
+        <dc:Bounds x="622" y="259" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_17qutzu_di" bpmnElement="ITE_1">
+        <dc:Bounds x="502" y="259" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Participant_140mv3g_di" bpmnElement="P_B" isHorizontal="true" bioc:stroke="#000" bioc:fill="#fff">
         <dc:Bounds x="129" y="450" width="961" height="180" />
@@ -176,10 +177,10 @@ return B</bpmn:script>
       <bpmndi:BPMNShape id="Activity_0yi711k_di" bpmnElement="Script_1">
         <dc:Bounds x="330" y="510" width="100" height="80" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_0ekchw1_di" bpmnElement="MFlow_1" bioc:stroke="#000" bioc:fill="#fff">
-        <di:waypoint x="320" y="317" />
-        <di:waypoint x="320" y="435" />
-        <di:waypoint x="250" y="435" />
+      <bpmndi:BPMNEdge id="Flow_0warryy_di" bpmnElement="Flow_0warryy">
+        <di:waypoint x="520" y="295" />
+        <di:waypoint x="520" y="490" />
+        <di:waypoint x="250" y="490" />
         <di:waypoint x="250" y="532" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
