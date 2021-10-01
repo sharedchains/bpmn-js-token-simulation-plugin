@@ -31,16 +31,16 @@ return B</bpmn:script>
     <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="Script_1" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_10gduin">
-      <bpmndi:BPMNEdge id="Flow_0kecvxx_di" bpmnElement="Flow_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_10gduin" >
+      <bpmndi:BPMNEdge id="Flow_0kecvxx_di" bpmnElement="Flow_1" bioc:stroke="#000" bioc:fill="#fff">
         <di:waypoint x="208" y="117" />
         <di:waypoint x="260" y="117" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_15e52kk_di" bpmnElement="Flow_4">
+      <bpmndi:BPMNEdge id="Flow_15e52kk_di" bpmnElement="Flow_4" bioc:stroke="#000" bioc:fill="#fff">
         <di:waypoint x="700" y="117" />
         <di:waypoint x="762" y="117" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0dgfof9_di" bpmnElement="Flow_3">
+      <bpmndi:BPMNEdge id="Flow_0dgfof9_di" bpmnElement="Flow_3" bioc:stroke="#000" bioc:fill="#fff">
         <di:waypoint x="520" y="117" />
         <di:waypoint x="600" y="117" />
       </bpmndi:BPMNEdge>
@@ -48,20 +48,20 @@ return B</bpmn:script>
         <di:waypoint x="360" y="117" />
         <di:waypoint x="420" y="117" />
       </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_1" bioc:stroke="#000" bioc:fill="#fff">
+        <dc:Bounds x="172" y="99" width="36" height="36" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_015bckk_di" bpmnElement="Script_1" bioc:stroke="#000" bioc:fill="#fff">
         <dc:Bounds x="260" y="77" width="100" height="80" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Activity_0gif8oe_di" bpmnElement="Script_2">
+      <bpmndi:BPMNShape id="Activity_0gif8oe_di" bpmnElement="Script_2" bioc:stroke="#000" bioc:fill="#fff">
         <dc:Bounds x="420" y="77" width="100" height="80" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Activity_0bsuzkm_di" bpmnElement="Script_3">
+      <bpmndi:BPMNShape id="Activity_0bsuzkm_di" bpmnElement="Script_3" bioc:stroke="#000" bioc:fill="#fff">
         <dc:Bounds x="600" y="77" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_14gp2tg_di" bpmnElement="EndEvent" bioc:stroke="#000" bioc:fill="#fff">
         <dc:Bounds x="762" y="99" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_1">
-        <dc:Bounds x="172" y="99" width="36" height="36" />
       </bpmndi:BPMNShape>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
