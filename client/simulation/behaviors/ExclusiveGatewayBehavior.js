@@ -3,6 +3,17 @@ import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { expressionPattern, isExpressionPattern } from '../script-runner/ScriptRunner';
 import { CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, TOGGLE_DATA_SIMULATION_EVENT } from '../../events/EventHelper';
 
+/**
+ * Extends default ExclusiveGatewayBehavior. This module allows to execute outgoing expressions and scripts, choosing the
+ * right path on bpmn simulation.
+ *
+ * @param simulator
+ * @param scriptRunner
+ * @param exclusiveGatewayBehavior
+ * @param dataNotifications
+ * @param eventBus
+ * @constructor
+ */
 export default function ExclusiveGatewayBehavior(simulator, scriptRunner, exclusiveGatewayBehavior, dataNotifications, eventBus) {
   this._simulator = simulator;
   this._scriptRunner = scriptRunner;

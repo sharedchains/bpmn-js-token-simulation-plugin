@@ -9,6 +9,14 @@ import { CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, TOGGLE_DATA_SIMULATION_
 const STYLE = getComputedStyle(document.documentElement);
 const DEFAULT_COLOR = STYLE.getPropertyValue('--token-simulation-grey-darken-30');
 
+/**
+ * Extends default ExclusiveGatewaySettings on Simulator. This module removes the default elementContextPads if data mode is active.
+ * @param eventBus
+ * @param elementRegistry
+ * @param exclusiveGatewaySettings
+ * @param contextPads
+ * @constructor
+ */
 export default function DataExclusiveGatewaySettings(eventBus, elementRegistry, exclusiveGatewaySettings, contextPads) {
   this._elementRegistry = elementRegistry;
   this._exclusiveGatewaySettings = exclusiveGatewaySettings;

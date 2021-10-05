@@ -5,6 +5,12 @@ import {
 } from 'min-dom';
 import { CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, TOGGLE_DATA_SIMULATION_EVENT } from '../events/EventHelper';
 
+/**
+ * Draws a button for Data Mode, integrated to the existing palette
+ * @param eventBus
+ * @param tokenSimulationPalette
+ * @constructor
+ */
 export default function ToggleData(eventBus, tokenSimulationPalette) {
   this._eventBus = eventBus;
   this._tokenSimulationPalette = tokenSimulationPalette;

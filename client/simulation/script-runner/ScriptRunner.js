@@ -6,7 +6,14 @@ export const expressionPattern = /\${(.+?)}/;
 export default function ScriptRunner(eventBus) {
   this._eventBus = eventBus;
 }
-
+/**
+ * Calls the {@link RUN_CODE_EVALUATION_EVENT} to instruct the Code Editor to run the script with additional data.
+ * Returns a promise with the result.
+ * @param code
+ * @param data
+ * @param additionalData
+ * @returns {Promise<*>}
+ */
 ScriptRunner.prototype.runScript = async function(code, data, additionalData) {
   const eventBus = this._eventBus;
 

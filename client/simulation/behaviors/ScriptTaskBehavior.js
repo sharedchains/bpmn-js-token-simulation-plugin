@@ -9,6 +9,16 @@ import {
 } from '../../events/EventHelper';
 import { getBusinessObject, is } from 'bpmn-js/lib/util/ModelUtil';
 
+/**
+ * New behaviour for ScriptTasks. This module allows to execute the scripts and keeps track of the calculated data
+ * @param simulator
+ * @param eventBus
+ * @param activityBehavior
+ * @param scriptRunner
+ * @param dataTokenSimulation
+ * @param dataNotifications
+ * @constructor
+ */
 export default function ScriptTaskBehavior(simulator, eventBus, activityBehavior, scriptRunner, dataTokenSimulation, dataNotifications) {
   this._simulator = simulator;
   this._eventBus = eventBus;

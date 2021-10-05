@@ -11,6 +11,12 @@ import { RESET_SIMULATION_EVENT, TOGGLE_MODE_EVENT } from 'bpmn-js-token-simulat
 const OFFSET_TOP = -15;
 const OFFSET_LEFT = 15;
 
+/**
+ * Implements notification element overlays on data errors
+ * @param overlays
+ * @param eventBus
+ * @constructor
+ */
 export default function DataNotifications(overlays, eventBus) {
   this._overlays = overlays;
 

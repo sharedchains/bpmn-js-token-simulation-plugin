@@ -22,6 +22,15 @@ import {
   UPDATED_DATA_EVENT
 } from '../events/EventHelper';
 
+/**
+ * Draws a panel on simulation mode, if data mode is active
+ *
+ * @param simulator
+ * @param eventBus
+ * @param canvas
+ * @param dataTokenSimulation
+ * @constructor
+ */
 export default function DataPanel(simulator, eventBus, canvas, dataTokenSimulation) {
   this._eventBus = eventBus;
   this._canvas = canvas;
@@ -31,10 +40,16 @@ export default function DataPanel(simulator, eventBus, canvas, dataTokenSimulati
   this._active = false;
   this.waitingElements = [];
 
+  /**
+   * Event received if Code Editor Plugin is present
+   */
   eventBus.on(CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, () => {
     this._active = true;
   });
 
+  /**
+   * On Simulation mode toggle active, activate panel if data mode is active
+   */
   this._eventBus.on(TOGGLE_MODE_EVENT, context => {
     let active = context.active;
 
@@ -46,6 +61,9 @@ export default function DataPanel(simulator, eventBus, canvas, dataTokenSimulati
     }
   });
 
+  /**
+   * On data mode toggle, activate data panel [Data mode activation is in {@link ./ToggleData.js|ToggleData module}]
+   */
   this._eventBus.on(TOGGLE_DATA_SIMULATION_EVENT, context => {
     this._active = context.active;
 
@@ -59,11 +77,17 @@ export default function DataPanel(simulator, eventBus, canvas, dataTokenSimulati
 
   this._eventBus.on('import.done', () => this._init());
 
+  /**
+   * Set data panel in view mode
+   */
   this._eventBus.on([SET_DATA_NOT_EDITABLE_EVENT, RESET_SIMULATION_EVENT], (context) => {
     this.editing = false;
     this.waitingElements = context && context.element ? this.waitingElements.filter((element) => element.id !== context.element.id) : [];
   });
 
+  /**
+   * Set data panel in edit mode
+   */
   this._eventBus.on(SET_DATA_EDITABLE_EVENT, (context) => {
     this.waitingElements.push(context.element);
 
@@ -89,6 +113,9 @@ export default function DataPanel(simulator, eventBus, canvas, dataTokenSimulati
     dataProperties.textContent = '';
   });
 
+  /**
+   * Builds the data panel on simulation SCOPE_DESTROYED_EVENT
+   */
   this._eventBus.on(SCOPE_DESTROYED_EVENT, LOW_PRIORITY, () => {
     if (this._active) {
       let data = this._dataTokenSimulation.getDataSimulation();

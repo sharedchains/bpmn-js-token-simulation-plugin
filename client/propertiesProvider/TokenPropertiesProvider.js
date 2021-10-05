@@ -16,6 +16,9 @@ function createTokenTabGroup(translate, element, dataTokenSimulation, dataTypes)
   ];
 }
 
+/**
+ * Extend the existing properties provider with our data tab
+ */
 export default class TokenPropertiesProvider {
   // Register our properties provider.
   // Use a lower priority to ensure it is loaded after the basic BPMN properties.
@@ -53,7 +56,7 @@ export default class TokenPropertiesProvider {
       }
       return entries;
     };
-  };
+  }
 }
 
 TokenPropertiesProvider.$inject = ['eventBus', 'propertiesPanel', 'translate', 'dataTokenSimulation'];

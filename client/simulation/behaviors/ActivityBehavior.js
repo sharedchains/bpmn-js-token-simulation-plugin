@@ -5,6 +5,14 @@ import {
   SET_DATA_NOT_EDITABLE_EVENT, TOGGLE_DATA_SIMULATION_EVENT
 } from '../../events/EventHelper';
 
+/**
+ * Extends default simulator ActivityBehavior to update UI in case data mode is active
+ *
+ * @param simulator
+ * @param eventBus
+ * @param activityBehavior
+ * @constructor
+ */
 export default function ActivityBehavior(simulator, eventBus, activityBehavior) {
   this._simulator = simulator;
   this._eventBus = eventBus;
