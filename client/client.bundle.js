@@ -28,7 +28,7 @@ function BreakpointsMode(eventBus,overlays,simulator) {
     this._overlays = overlays;
     this.overlayIds = {};
     this.simulator = simulator;
-
+    this.active = false;
     let nodesToExclude = ["bpmn:StartEvent","bpmn:EndEvent","bpmn:Gateway","bpmn:SubProcess"];
 
     var css = ".breakpoints-order { border: 1px solid black; display:none; border-radius: 100%; min-width: 3vmin; min-height: 3vmin; line-height: 3vmin; text-align: center; font-size: 25px; font-size: medium; user-select: none; padding: 2px; box-sizing: content-box; } .breakpoints-order.order-count { color: #FFFFFF; font-family: 'Arial', sans-serif; background-color: #ff0000; } .breakpoints-order-show {display:block} ",
@@ -43,7 +43,9 @@ function BreakpointsMode(eventBus,overlays,simulator) {
 
 
     eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_MODE_EVENT, function(context) {
-       
+        console.log('context')
+        console.log(context)
+        self.active = context.active;
         let breakpointNodes = document.getElementsByClassName('breakpoints-order');
         if(context.active){
             self._eventBus.on('element.click',200, self.selectElement);
@@ -65,7 +67,7 @@ function BreakpointsMode(eventBus,overlays,simulator) {
         const { element } = event;
         const overlayHistory = self.overlayIds[element.id];
 
-        if((0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_1__.is)(element, 'bpmn:FlowNode') && !(nodesToExclude.map(x => (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_1__.is)(element,x)).reduce((prev,old) => prev || old)) && overlayHistory === undefined){
+        if((0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_1__.is)(element, 'bpmn:FlowNode') && !(nodesToExclude.map(x => (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_1__.is)(element,x)).reduce((prev,old) => prev || old)) && overlayHistory === undefined && self.active){
             let elementBo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_1__.getBusinessObject)(element);
             self.addNewOverlay(element,elementBo)
             self.simulator.waitAtElement(element)    
@@ -82,10 +84,12 @@ function BreakpointsMode(eventBus,overlays,simulator) {
        
         if (!overlayHistory) return;
         
-        const overlayId = overlayHistory.overlayId;
-        self._overlays.remove(overlayId);
-        delete self.overlayIds[element.id];
-        self.simulator.waitAtElement(element,false);
+        if(self.active){
+            const overlayId = overlayHistory.overlayId;
+            self._overlays.remove(overlayId);
+            delete self.overlayIds[element.id];
+            self.simulator.waitAtElement(element,false);
+        }
 
       };
 
