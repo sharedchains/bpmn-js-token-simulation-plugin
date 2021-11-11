@@ -74,43 +74,48 @@ ExclusiveGatewayBehavior.prototype.enter = function(context) {
 
     const promises = [];
 
-    outgoings.every(async outgoing => {
-      let outgoingBo = getBusinessObject(outgoing);
-      const conditionExpression = outgoingBo.conditionExpression;
-      if (conditionExpression) {
-        const expression = conditionExpression.body;
-        let code;
+    if (outgoings.length === 1) {
+      promises.push(Promise.resolve({ output: 'true', outgoing: outgoings[0], context }));
+    } else if (outgoings.length > 1) {
+      outgoings.every(async outgoing => {
+        let outgoingBo = getBusinessObject(outgoing);
+        const conditionExpression = outgoingBo.conditionExpression;
+        if (conditionExpression) {
+          const expression = conditionExpression.body;
+          let code;
 
-        if (conditionExpression?.language === 'groovy') {
-          code = expression;
-        } else if (isExpressionPattern.test(expression)) {
+          if (conditionExpression?.language === 'groovy') {
+            code = expression;
+          } else if (isExpressionPattern.test(expression)) {
 
-          // Expression
-          const expressionMatch = expression.match(expressionPattern);
-          code = expressionMatch[1];
+            // Expression
+            const expressionMatch = expression.match(expressionPattern);
+            code = expressionMatch[1];
+          } else {
+            this._dataNotifications.addElementNotification(outgoing, {
+              type: 'error',
+              icon: 'fa-exclamation-triangle',
+              text: 'Script language is not groovy or is not a valid expression'
+            });
+            return false;
+          }
+
+          // Script
+          promises.push(this._scriptRunner.runScript(code, scope.data, { outgoing, context }));
+        } else if (outgoing.id === defaultFlow) {
+          promises.push(Promise.resolve({ output: 'true', outgoing, context }));
         } else {
           this._dataNotifications.addElementNotification(outgoing, {
             type: 'error',
             icon: 'fa-exclamation-triangle',
-            text: 'Script language is not groovy or is not a valid expression'
+            text: 'Missing condition'
           });
           return false;
         }
+        return true;
+      });
 
-        // Script
-        promises.push(this._scriptRunner.runScript(code, scope.data, { outgoing, context }));
-      } else if (outgoing.id === defaultFlow) {
-        promises.push(Promise.resolve({ output: 'true', outgoing, context }));
-      } else {
-        this._dataNotifications.addElementNotification(outgoing, {
-          type: 'error',
-          icon: 'fa-exclamation-triangle',
-          text: 'Missing condition'
-        });
-        return false;
-      }
-      return true;
-    });
+    }
 
     this.evaluatePromises(element, promises);
 

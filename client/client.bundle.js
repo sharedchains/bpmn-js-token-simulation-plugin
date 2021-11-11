@@ -79,7 +79,63 @@ __webpack_require__.r(__webpack_exports__);
 
 class Data {
 
+  /**
+   * Data class, keeps scope data for simulation
+   *
+   * @param eventBus
+   */
   constructor(eventBus) {
+
+    /**
+     * @typedef DataObject
+     * @type {Object}
+     * @property {ModdleElement} element bpmn-js Moddle Element
+     * @property {DataMap} data Variable Map Object
+     * @property {SimulationMap|undefined} simulation Variable Map Object
+     * @property {Colors} [colors]
+     */
+
+    /**
+     * @typedef Colors
+     * @type {Object}
+     *
+     * @property {String} primary
+     * @property {String} auxiliary
+     *
+     */
+
+    /**
+     * @typedef DataMap
+     * @typedef SimulationMap
+     *
+     * Keeps a map for the detected variables of the simulation.
+     * Key is the variable name
+     * @type {Map<String, CamundaVariable>}
+     *
+     */
+
+    /**
+     * @typedef CamundaVariable
+     * @type {Object}
+     *
+     * @property {String} name
+     * @property {*} value
+     * @property {String} type
+     */
+
+    /**
+     * @typedef SimulationObject
+     * @type {Object}
+     *
+     * @property {SimulationMap} simulation
+     * @property {Colors} colors map
+     */
+
+    /**
+     * We will keep an array of objects for each participant/process of the model.
+     * @type {Array.<DataObject>}
+     * @private
+     */
     this._data = [];
 
     eventBus.on('import.done', () => {
@@ -96,8 +152,8 @@ class Data {
     /*
     * Every time the simulation token enters into an object, a SCOPE_CREATE_EVENT event is fired.
     * We decorate the scope of the element with the data accumulated:
-    *  * from simulation, if present
-    *  * from its participant/process (which is the owner of every data object)
+    *  + from simulation, if present
+    *  + from its participant/process (which is the owner of every data object)
     *
     * */
     eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_2__.SCOPE_CREATE_EVENT, event => {
@@ -147,8 +203,11 @@ class Data {
 
   }
 
-  /*
-   * We return a new instance of map, to avoid references from the old structures that could 'false data'
+  /**
+   *  Returns a new instance of map, to avoid references from the old structures that could 'false data'
+   *
+   * @param maps
+   * @returns {Map<any, any>}
    */
   #destructureMaps(...maps) {
     let newMap = new Map();
@@ -160,6 +219,11 @@ class Data {
     return newMap;
   }
 
+  /**
+   * Returns the business object of the Process element, or Participant if model is a Collaboration
+   * @param element the starting ModdleElement
+   * @returns {{$parent}|*|ModdleElement}
+   */
   #getProcessOrParticipantElement(element) {
     let bo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__.getBusinessObject)(element);
     if (!bo) {
@@ -182,6 +246,11 @@ class Data {
     }
   }
 
+  /**
+   * Cycles bpmn model until it finds the parent Process element
+   * @param businessObject
+   * @returns {{$parent}|*}
+   */
   static #getRootProcess(businessObject) {
     let parent = businessObject;
     if (!businessObject) {
@@ -193,10 +262,21 @@ class Data {
     return parent;
   }
 
+  /**
+   * Returns the DataObject relative to the rootElementParam
+   * @param rootElement Process or Participant
+   * @returns {DataObject|undefined}
+   */
   getDataObject(rootElement) {
     return this._data.find(obj => obj.element.id === rootElement.id);
   }
 
+  /**
+   * Replaces the simulation variables map for the provided element
+   *
+   * @param {ModdleElement} element
+   * @param {SimulationMap} map
+   */
   setDataSimulationMap(element, map) {
     let elem = this.#getProcessOrParticipantElement(element);
     let index = this._data.findIndex(obj => obj.element.id === elem.id);
@@ -207,6 +287,10 @@ class Data {
     }
   }
 
+  /**
+   * Creates a new {@link DataObject} for the provided element, pushing it to the private array
+   * @param {ModdleElement} element
+   */
   addDataElement(element) {
     let elem = this.#getProcessOrParticipantElement(element);
     let map = this.getDataElements(elem);
@@ -217,6 +301,11 @@ class Data {
     map.set('', {});
   }
 
+  /**
+   * Returns the variable data map for the provided element
+   * @param element
+   * @returns {DataMap|*[]}
+   */
   getDataElements(element) {
     let elem = this.#getProcessOrParticipantElement(element);
     if (elem) {
@@ -226,6 +315,11 @@ class Data {
     }
   }
 
+  /**
+   * Returns the variable simulation map for the provided element
+   * @param element
+   * @returns {*[]|SimulationMap|undefined}
+   */
   getDataElementSimulation(element) {
     let elem = this.#getProcessOrParticipantElement(element);
     if (elem) {
@@ -235,6 +329,11 @@ class Data {
     }
   }
 
+  /**
+   * Add a new variable to the {@link SimulationMap} for the provided element
+   * @param {ModdleElement} element
+   * @param {CamundaVariable} value
+   */
   addDataElementSimulation(element, value) {
     let elem = this.#getProcessOrParticipantElement(element);
     let dataObject = this.getDataObject(elem);
@@ -244,11 +343,22 @@ class Data {
     dataObject.simulation.set(value['name'], { ...value });
   }
 
+  /**
+   * Updates an existing variable in the {@link SimulationMap} for the provided participant
+   * @param {String} idParticipant
+   * @param {CamundaVariable} value
+   */
   updateDataElementSimulation(idParticipant, value) {
     let dataObject = this._data.find(obj => obj.element.id === idParticipant);
     dataObject.simulation.set(value['name'], { ...value });
   }
 
+  /**
+   * Updates an existing variable value in the {@link DataMap} for the provided element
+   * @param {ModdleElement} element
+   * @param {CamundaVariable} value
+   * @param {number} index
+   */
   updateDataElement(element, value, index) {
     let elem = this.#getProcessOrParticipantElement(element);
     let map = this.getDataElements(elem);
@@ -260,6 +370,11 @@ class Data {
     map.set(value['name'], { ...value });
   }
 
+  /**
+   * Removes an existing variable at the provided index
+   * @param {ModdleElement} element
+   * @param {number} index
+   */
   removeDataElement(element, index) {
     let elem = this.#getProcessOrParticipantElement(element);
     let map = this.getDataElements(elem);
@@ -270,6 +385,10 @@ class Data {
     map.delete(keyMap);
   }
 
+  /**
+   * Returns an array of objects for each process/participant of the model, containing a {@link SimulationObject}
+   * @returns { Array.<SimulationObject>}
+   */
   getDataSimulation() {
     return this._data.map(data => {
       let obj = {};
@@ -312,6 +431,15 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
+/**
+ * Draws a panel on simulation mode, if data mode is active
+ *
+ * @param simulator
+ * @param eventBus
+ * @param canvas
+ * @param dataTokenSimulation
+ * @constructor
+ */
 function DataPanel(simulator, eventBus, canvas, dataTokenSimulation) {
   this._eventBus = eventBus;
   this._canvas = canvas;
@@ -321,10 +449,16 @@ function DataPanel(simulator, eventBus, canvas, dataTokenSimulation) {
   this._active = false;
   this.waitingElements = [];
 
+  /**
+   * Event received if Code Editor Plugin is present
+   */
   eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
     this._active = true;
   });
 
+  /**
+   * On Simulation mode toggle active, activate panel if data mode is active
+   */
   this._eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_MODE_EVENT, context => {
     let active = context.active;
 
@@ -336,6 +470,9 @@ function DataPanel(simulator, eventBus, canvas, dataTokenSimulation) {
     }
   });
 
+  /**
+   * On data mode toggle, activate data panel [Data mode activation is in {@link ./ToggleData.js|ToggleData module}]
+   */
   this._eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_DATA_SIMULATION_EVENT, context => {
     this._active = context.active;
 
@@ -349,11 +486,17 @@ function DataPanel(simulator, eventBus, canvas, dataTokenSimulation) {
 
   this._eventBus.on('import.done', () => this._init());
 
+  /**
+   * Set data panel in view mode
+   */
   this._eventBus.on([_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_NOT_EDITABLE_EVENT, bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.RESET_SIMULATION_EVENT], (context) => {
     this.editing = false;
     this.waitingElements = context && context.element ? this.waitingElements.filter((element) => element.id !== context.element.id) : [];
   });
 
+  /**
+   * Set data panel in edit mode
+   */
   this._eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_EDITABLE_EVENT, (context) => {
     this.waitingElements.push(context.element);
 
@@ -379,6 +522,9 @@ function DataPanel(simulator, eventBus, canvas, dataTokenSimulation) {
     dataProperties.textContent = '';
   });
 
+  /**
+   * Builds the data panel on simulation SCOPE_DESTROYED_EVENT
+   */
   this._eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.SCOPE_DESTROYED_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
     if (this._active) {
       let data = this._dataTokenSimulation.getDataSimulation();
@@ -466,6 +612,12 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
+/**
+ * Draws a button for Data Mode, integrated to the existing palette
+ * @param eventBus
+ * @param tokenSimulationPalette
+ * @constructor
+ */
 function ToggleData(eventBus, tokenSimulationPalette) {
   this._eventBus = eventBus;
   this._tokenSimulationPalette = tokenSimulationPalette;
@@ -620,6 +772,9 @@ function createTokenTabGroup(translate, element, dataTokenSimulation, dataTypes)
   ];
 }
 
+/**
+ * Extend the existing properties provider with our data tab
+ */
 class TokenPropertiesProvider {
   // Register our properties provider.
   // Use a lower priority to ensure it is loaded after the basic BPMN properties.
@@ -657,7 +812,7 @@ class TokenPropertiesProvider {
       }
       return entries;
     };
-  };
+  }
 }
 
 TokenPropertiesProvider.$inject = ['eventBus', 'propertiesPanel', 'translate', 'dataTokenSimulation'];
@@ -847,6 +1002,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../events/EventHelper */ "./client/events/EventHelper.js");
 
 
+/**
+ * Extends default simulator ActivityBehavior to update UI in case data mode is active
+ *
+ * @param simulator
+ * @param eventBus
+ * @param activityBehavior
+ * @constructor
+ */
 function ActivityBehavior(simulator, eventBus, activityBehavior) {
   this._simulator = simulator;
   this._eventBus = eventBus;
@@ -922,6 +1085,17 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
+/**
+ * Extends default ExclusiveGatewayBehavior. This module allows to execute outgoing expressions and scripts, choosing the
+ * right path on bpmn simulation.
+ *
+ * @param simulator
+ * @param scriptRunner
+ * @param exclusiveGatewayBehavior
+ * @param dataNotifications
+ * @param eventBus
+ * @constructor
+ */
 function ExclusiveGatewayBehavior(simulator, scriptRunner, exclusiveGatewayBehavior, dataNotifications, eventBus) {
   this._simulator = simulator;
   this._scriptRunner = scriptRunner;
@@ -982,43 +1156,48 @@ ExclusiveGatewayBehavior.prototype.enter = function(context) {
 
     const promises = [];
 
-    outgoings.every(async outgoing => {
-      let outgoingBo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__.getBusinessObject)(outgoing);
-      const conditionExpression = outgoingBo.conditionExpression;
-      if (conditionExpression) {
-        const expression = conditionExpression.body;
-        let code;
+    if (outgoings.length === 1) {
+      promises.push(Promise.resolve({ output: 'true', outgoing: outgoings[0], context }));
+    } else if (outgoings.length > 1) {
+      outgoings.every(async outgoing => {
+        let outgoingBo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__.getBusinessObject)(outgoing);
+        const conditionExpression = outgoingBo.conditionExpression;
+        if (conditionExpression) {
+          const expression = conditionExpression.body;
+          let code;
 
-        if (conditionExpression?.language === 'groovy') {
-          code = expression;
-        } else if (_script_runner_ScriptRunner__WEBPACK_IMPORTED_MODULE_0__.isExpressionPattern.test(expression)) {
+          if (conditionExpression?.language === 'groovy') {
+            code = expression;
+          } else if (_script_runner_ScriptRunner__WEBPACK_IMPORTED_MODULE_0__.isExpressionPattern.test(expression)) {
 
-          // Expression
-          const expressionMatch = expression.match(_script_runner_ScriptRunner__WEBPACK_IMPORTED_MODULE_0__.expressionPattern);
-          code = expressionMatch[1];
+            // Expression
+            const expressionMatch = expression.match(_script_runner_ScriptRunner__WEBPACK_IMPORTED_MODULE_0__.expressionPattern);
+            code = expressionMatch[1];
+          } else {
+            this._dataNotifications.addElementNotification(outgoing, {
+              type: 'error',
+              icon: 'fa-exclamation-triangle',
+              text: 'Script language is not groovy or is not a valid expression'
+            });
+            return false;
+          }
+
+          // Script
+          promises.push(this._scriptRunner.runScript(code, scope.data, { outgoing, context }));
+        } else if (outgoing.id === defaultFlow) {
+          promises.push(Promise.resolve({ output: 'true', outgoing, context }));
         } else {
           this._dataNotifications.addElementNotification(outgoing, {
             type: 'error',
             icon: 'fa-exclamation-triangle',
-            text: 'Script language is not groovy or is not a valid expression'
+            text: 'Missing condition'
           });
           return false;
         }
+        return true;
+      });
 
-        // Script
-        promises.push(this._scriptRunner.runScript(code, scope.data, { outgoing, context }));
-      } else if (outgoing.id === defaultFlow) {
-        promises.push(Promise.resolve({ output: 'true', outgoing, context }));
-      } else {
-        this._dataNotifications.addElementNotification(outgoing, {
-          type: 'error',
-          icon: 'fa-exclamation-triangle',
-          text: 'Missing condition'
-        });
-        return false;
-      }
-      return true;
-    });
+    }
 
     this.evaluatePromises(element, promises);
 
@@ -1072,6 +1251,16 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
+/**
+ * New behaviour for ScriptTasks. This module allows to execute the scripts and keeps track of the calculated data
+ * @param simulator
+ * @param eventBus
+ * @param activityBehavior
+ * @param scriptRunner
+ * @param dataTokenSimulation
+ * @param dataNotifications
+ * @constructor
+ */
 function ScriptTaskBehavior(simulator, eventBus, activityBehavior, scriptRunner, dataTokenSimulation, dataNotifications) {
   this._simulator = simulator;
   this._eventBus = eventBus;
@@ -1239,6 +1428,12 @@ __webpack_require__.r(__webpack_exports__);
 const OFFSET_TOP = -15;
 const OFFSET_LEFT = 15;
 
+/**
+ * Implements notification element overlays on data errors
+ * @param overlays
+ * @param eventBus
+ * @constructor
+ */
 function DataNotifications(overlays, eventBus) {
   this._overlays = overlays;
 
@@ -1332,6 +1527,14 @@ __webpack_require__.r(__webpack_exports__);
 const STYLE = getComputedStyle(document.documentElement);
 const DEFAULT_COLOR = STYLE.getPropertyValue('--token-simulation-grey-darken-30');
 
+/**
+ * Extends default ExclusiveGatewaySettings on Simulator. This module removes the default elementContextPads if data mode is active.
+ * @param eventBus
+ * @param elementRegistry
+ * @param exclusiveGatewaySettings
+ * @param contextPads
+ * @constructor
+ */
 function DataExclusiveGatewaySettings(eventBus, elementRegistry, exclusiveGatewaySettings, contextPads) {
   this._elementRegistry = elementRegistry;
   this._exclusiveGatewaySettings = exclusiveGatewaySettings;
@@ -1483,7 +1686,14 @@ const expressionPattern = /\${(.+?)}/;
 function ScriptRunner(eventBus) {
   this._eventBus = eventBus;
 }
-
+/**
+ * Calls the {@link RUN_CODE_EVALUATION_EVENT} to instruct the Code Editor to run the script with additional data.
+ * Returns a promise with the result.
+ * @param code
+ * @param data
+ * @param additionalData
+ * @returns {Promise<*>}
+ */
 ScriptRunner.prototype.runScript = async function(code, data, additionalData) {
   const eventBus = this._eventBus;
 
