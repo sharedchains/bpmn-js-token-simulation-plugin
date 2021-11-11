@@ -75,6 +75,7 @@ ExclusiveGatewayBehavior.prototype.enter = function(context) {
     const promises = [];
 
     if (outgoings.length === 1) {
+      // TODO: Needs tests
       promises.push(Promise.resolve({ output: 'true', outgoing: outgoings[0], context }));
     } else if (outgoings.length > 1) {
       outgoings.every(async outgoing => {
