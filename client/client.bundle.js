@@ -2400,9 +2400,9 @@ function EditorActions(
     eventBus,
     toggleMode,
     pauseSimulation,
-    log,
     resetSimulation,
-    editorActions
+    editorActions,
+    injector
 ) {
   editorActions.register({
     toggleTokenSimulation: function() {
@@ -2422,7 +2422,9 @@ function EditorActions(
     }
   });
 
-  editorActions.register({
+  const log = injector.get('log', false);
+
+  log && editorActions.register({
     toggleTokenSimulationLog: function() {
       log.toggle();
     }
@@ -2433,9 +2435,9 @@ EditorActions.$inject = [
   'eventBus',
   'toggleMode',
   'pauseSimulation',
-  'log',
   'resetSimulation',
-  'editorActions'
+  'editorActions',
+  'injector'
 ];
 
 /***/ }),
@@ -6344,7 +6346,7 @@ ParallelGatewayBehavior.prototype.enter = function(context) {
     parent: parentScope
   } = scope;
 
-  const elementScopes = parentScope.children.filter(c => c.element === element);
+  const elementScopes = parentScope.children.filter(c => !c.destroyed && c.element === element);
 
   if (elementScopes.length === sequenceFlows.length) {
 
