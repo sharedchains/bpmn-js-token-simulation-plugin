@@ -1,6 +1,6 @@
 {
   "name": "bpmn-js-token-simulation-plugin",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "description": "bpmn-js Token Simulation plug-in for the Camunda Modeler",
   "main": "index.js",
   "scripts": {
@@ -24,7 +24,7 @@
   "devDependencies": {
     "bpmn-js": "^8.6.0",
     "bpmn-js-properties-panel": "^0.43.1",
-    "bpmn-js-token-simulation": "^0.21.1",
+    "bpmn-js-token-simulation": "^0.22.0",
     "camunda-bpmn-moddle": "^5.1.2",
     "camunda-modeler-plugin-helpers": "^2.1.0",
     "chai": "^4.3.4",
