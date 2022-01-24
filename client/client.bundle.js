@@ -162,12 +162,11 @@ class Data {
       } = event;
 
       const {
-        element,
-        initiator
+        element
       } = scope;
 
       scope.data = undefined;
-      if (initiator && initiator.type === 'bpmn:MessageFlow') {
+      if (element && element.type === 'bpmn:MessageFlow') {
         /*
         * The token is moving from a participant to another,
         * we need to pass the scope from the "source" process to the "target" process
@@ -608,7 +607,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "default": () => (/* binding */ ToggleData)
 /* harmony export */ });
 /* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! min-dom */ "./node_modules/min-dom/dist/index.esm.js");
+/* harmony import */ var bpmn_js_token_simulation_lib_icons__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/icons */ "../bpmn-js-token-simulation/lib/icons/index.js");
 /* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../events/EventHelper */ "./client/events/EventHelper.js");
+
+
 
 
 
@@ -632,8 +634,8 @@ function ToggleData(eventBus, tokenSimulationPalette) {
 
 ToggleData.prototype._init = function() {
   this.paletteEntry = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(`
-    <div class="entry active" title="Toggle data">
-      <i class="fa fa-bar-chart"></i>
+    <div class="bts-entry active" title="Toggle data">
+      ${ (0,bpmn_js_token_simulation_lib_icons__WEBPACK_IMPORTED_MODULE_2__.ChartBarIcon)() }
     </div>
   `);
 
@@ -1525,19 +1527,22 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-const STYLE = getComputedStyle(document.documentElement);
-const DEFAULT_COLOR = STYLE.getPropertyValue('--token-simulation-grey-darken-30');
+const DEFAULT_COLOR = '--token-simulation-grey-darken-30';
 
 /**
  * Extends default ExclusiveGatewaySettings on Simulator. This module removes the default elementContextPads if data mode is active.
  * @param eventBus
  * @param elementRegistry
+ * @param elementColors
+ * @param simulationStyles
  * @param exclusiveGatewaySettings
  * @param contextPads
  * @constructor
  */
-function DataExclusiveGatewaySettings(eventBus, elementRegistry, exclusiveGatewaySettings, contextPads) {
+function DataExclusiveGatewaySettings(eventBus, elementRegistry, elementColors, simulationStyles, exclusiveGatewaySettings, contextPads) {
   this._elementRegistry = elementRegistry;
+  this._elementColors = elementColors;
+  this._simulationStyles = simulationStyles;
   this._exclusiveGatewaySettings = exclusiveGatewaySettings;
   this._contextPads = contextPads;
 
@@ -1572,7 +1577,12 @@ function DataExclusiveGatewaySettings(eventBus, elementRegistry, exclusiveGatewa
       } else {
         this._exclusiveGatewaySettings.setSequenceFlowsDefault();
         exclusiveGateways.forEach(exclusiveGateway => {
-          contextPads.openElementContextPads(exclusiveGateway);
+          // Show context pad
+          for (const handler of contextPads.getHandlers(exclusiveGateway)) {
+            const handlerHash = `${exclusiveGateway.id}------${handler.hash}`;
+            contextPads._addOverlay(exclusiveGateway, { handlerHash, html: '<div></div>' })
+            contextPads.updateElementContextPads(exclusiveGateway);
+          }
         });
       }
     }
@@ -1584,7 +1594,8 @@ function DataExclusiveGatewaySettings(eventBus, elementRegistry, exclusiveGatewa
     } = event;
 
     if (this.dataActive && this.active && (0,bpmn_js_token_simulation_lib_util_ElementHelper__WEBPACK_IMPORTED_MODULE_2__.is)(element, 'bpmn:ExclusiveGateway')) {
-      contextPads.closeElementContextPads(element);
+      // Hide context pad
+      closeContextPads(this._contextPads, element);
     }
   });
   eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.RESET_SIMULATION_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
@@ -1601,15 +1612,29 @@ DataExclusiveGatewaySettings.prototype.resetSequenceFlows = function(exclusiveGa
   this._exclusiveGatewaySettings.resetSequenceFlows();
 
   exclusiveGateways.forEach(exclusiveGateway => {
-    this._contextPads.closeElementContextPads(exclusiveGateway);
+    // Hide context pad
+    closeContextPads(this._contextPads, exclusiveGateway);
+
+    const stroke = this._simulationStyles.get(DEFAULT_COLOR);
     // set colors
     exclusiveGateway.outgoing.forEach(outgoing => {
-      this._exclusiveGatewaySettings.setColor(outgoing, DEFAULT_COLOR);
+      this._elementColors.set(outgoing, { stroke });
     });
   });
 };
 
-DataExclusiveGatewaySettings.$inject = ['eventBus', 'elementRegistry', 'exclusiveGatewaySettings', 'contextPads'];
+function closeContextPads(contextPads, exclusiveGateway) {
+  for (const handler of contextPads.getHandlers(exclusiveGateway)) {
+    const handlerHash = `${exclusiveGateway.id}------${handler.hash}`;
+    const existingOverlays = contextPads._getOverlays(handlerHash);
+    for (const existingOverlay of existingOverlays) {
+      contextPads._removeOverlay(existingOverlay);
+    }
+  }
+
+}
+
+DataExclusiveGatewaySettings.$inject = ['eventBus', 'elementRegistry', 'elementColors', 'simulationStyles', 'exclusiveGatewaySettings', 'contextPads'];
 
 /***/ }),
 
@@ -4203,8 +4228,17 @@ function getBusinessObject(element) {
 /*!**************************************************************!*\
   !*** ./node_modules/camunda-modeler-plugin-helpers/index.js ***!
   \**************************************************************/
-/***/ ((module) => {
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "registerClientPlugin": () => (/* binding */ registerClientPlugin),
+/* harmony export */   "registerBpmnJSPlugin": () => (/* binding */ registerBpmnJSPlugin),
+/* harmony export */   "registerBpmnJSModdleExtension": () => (/* binding */ registerBpmnJSModdleExtension),
+/* harmony export */   "getModelerDirectory": () => (/* binding */ getModelerDirectory),
+/* harmony export */   "getPluginsDirectory": () => (/* binding */ getPluginsDirectory)
+/* harmony export */ });
 /**
  * Validate and register a client plugin.
  *
@@ -4232,39 +4266,70 @@ function registerClientPlugin(plugin, type) {
 /**
  * Validate and register a bpmn-js plugin.
  *
- * Example use:
+ * @param {Object} module
  *
- *    var registerBpmnJSPlugin = require('./camundaModelerPluginHelpers').registerBpmnJSPlugin;
- *    var module = require('./index');
+ * @example
  *
- *    registerBpmnJSPlugin(module);
+ * import {
+ *   registerBpmnJSPlugin
+ * } from 'camunda-modeler-plugin-helpers';
  *
- * @param {Object} plugin
+ * const BpmnJSModule = {
+ *   __init__: [ 'myService' ],
+ *   myService: [ 'type', ... ]
+ * };
+ *
+ * registerBpmnJSPlugin(BpmnJSModule);
  */
-function registerBpmnJSPlugin(plugin) {
-  registerClientPlugin(plugin, 'bpmn.modeler.additionalModules');
+function registerBpmnJSPlugin(module) {
+  registerClientPlugin(module, 'bpmn.modeler.additionalModules');
 }
-
-module.exports.registerBpmnJSPlugin = registerBpmnJSPlugin;
 
 /**
  * Validate and register a bpmn-moddle extension plugin.
  *
- * Example use:
+ * @param {Object} descriptor
  *
- *    var registerBpmnJSModdleExtension = require('./camundaModelerPluginHelpers').registerBpmnJSModdleExtension;
- *    var module = require('./index');
+ * @example
+ * import {
+ *   registerBpmnJSModdleExtension
+ * } from 'camunda-modeler-plugin-helpers';
  *
- *    registerBpmnJSModdleExtension(module);
+ * var moddleDescriptor = {
+ *   name: 'my descriptor',
+ *   uri: 'http://example.my.company.localhost/schema/my-descriptor/1.0',
+ *   prefix: 'mydesc',
  *
- * @param {Object} plugin
+ *   ...
+ * };
+ *
+ * registerBpmnJSModdleExtension(moddleDescriptor);
  */
-function registerBpmnJSModdleExtension(plugin) {
-  registerClientPlugin(plugin, 'bpmn.modeler.moddleExtension');
+function registerBpmnJSModdleExtension(descriptor) {
+  registerClientPlugin(descriptor, 'bpmn.modeler.moddleExtension');
 }
 
-module.exports.registerBpmnJSModdleExtension = registerBpmnJSModdleExtension;
+/**
+ * Return the modeler directory, as a string.
+ *
+ * @deprecated Will be removed in future Camunda Modeler versions without replacement.
+ *
+ * @return {String}
+ */
+function getModelerDirectory() {
+  return window.getModelerDirectory();
+}
 
+/**
+ * Return the modeler plugin directory, as a string.
+ *
+ * @deprecated Will be removed in future Camunda Modeler versions without replacement.
+ *
+ * @return {String}
+ */
+function getPluginsDirectory() {
+  return window.getPluginsDirectory();
+}
 
 /***/ }),
 
@@ -13085,7 +13150,7 @@ function Animation(canvas, eventBus, scopeFilter) {
     const viewport = (0,min_dom__WEBPACK_IMPORTED_MODULE_0__.query)('.viewport', canvas._svg);
 
     this.group = (0,tiny_svg__WEBPACK_IMPORTED_MODULE_1__.appendTo)(
-      (0,tiny_svg__WEBPACK_IMPORTED_MODULE_1__.create)('<g class="animation-tokens" />'),
+      (0,tiny_svg__WEBPACK_IMPORTED_MODULE_1__.create)('<g class="bts-animation-tokens" />'),
       viewport
     );
   });
@@ -13194,31 +13259,35 @@ Animation.prototype.clearAnimations = function(scope) {
 };
 
 Animation.prototype._createTokenGfx = function(scope) {
+  const parent = (0,tiny_svg__WEBPACK_IMPORTED_MODULE_1__.create)(this._getTokenSVG(scope).trim());
+
+  return (0,tiny_svg__WEBPACK_IMPORTED_MODULE_1__.appendTo)(parent, this.group);
+};
+
+Animation.prototype._getTokenSVG = function(scope) {
 
   const colors = scope.colors || {
     primary: DEFAULT_PRIMARY_COLOR,
     auxiliary: DEFAULT_AUXILIARY_COLOR
   };
 
-  const parent = (0,tiny_svg__WEBPACK_IMPORTED_MODULE_1__.create)(`
-    <g class="token">
+  return `
+    <g class="bts-token">
       <circle
-        class="circle"
+        class="bts-circle"
         r="${TOKEN_SIZE / 2}"
         cx="${TOKEN_SIZE / 2}"
         cy="${TOKEN_SIZE / 2}"
         fill="${ colors.primary }"
       />
       <text
-        class="text"
+        class="bts-text"
         transform="translate(10, 14)"
         text-anchor="middle"
         fill="${ colors.auxiliary }"
       >1</text>
     </g>
-  `.trim());
-
-  return (0,tiny_svg__WEBPACK_IMPORTED_MODULE_1__.appendTo)(parent, this.group);
+  `;
 };
 
 Animation.$inject = [
@@ -13734,14 +13803,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "default": () => (/* binding */ ContextPads),
 /* harmony export */   "isAncestor": () => (/* binding */ isAncestor)
 /* harmony export */ });
-/* harmony import */ var _util_ElementHelper__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../../util/ElementHelper */ "../bpmn-js-token-simulation/lib/util/ElementHelper.js");
-/* harmony import */ var _util_EventHelper__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
-/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
+/* harmony import */ var _util_ElementHelper__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ../../util/ElementHelper */ "../bpmn-js-token-simulation/lib/util/ElementHelper.js");
+/* harmony import */ var _util_EventHelper__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
 /* harmony import */ var _handler_BoundaryEventHandler__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./handler/BoundaryEventHandler */ "../bpmn-js-token-simulation/lib/features/context-pads/handler/BoundaryEventHandler.js");
 /* harmony import */ var _handler_ExclusiveGatewayHandler__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./handler/ExclusiveGatewayHandler */ "../bpmn-js-token-simulation/lib/features/context-pads/handler/ExclusiveGatewayHandler.js");
 /* harmony import */ var _handler_EventBasedGatewayHandler__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./handler/EventBasedGatewayHandler */ "../bpmn-js-token-simulation/lib/features/context-pads/handler/EventBasedGatewayHandler.js");
-/* harmony import */ var _handler_IntermediateCatchEventHandler__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./handler/IntermediateCatchEventHandler */ "../bpmn-js-token-simulation/lib/features/context-pads/handler/IntermediateCatchEventHandler.js");
+/* harmony import */ var _handler_ContinueHandler__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./handler/ContinueHandler */ "../bpmn-js-token-simulation/lib/features/context-pads/handler/ContinueHandler.js");
 /* harmony import */ var _handler_StartEventHandler__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./handler/StartEventHandler */ "../bpmn-js-token-simulation/lib/features/context-pads/handler/StartEventHandler.js");
+/* harmony import */ var _handler_PauseHandler__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./handler/PauseHandler */ "../bpmn-js-token-simulation/lib/features/context-pads/handler/PauseHandler.js");
 
 
 
@@ -13754,8 +13824,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-// TODO(nikku): restore or delete
-// import ProcessHandler from './handler/ProcessHandler';
+
 
 const LOW_PRIORITY = 500;
 
@@ -13774,26 +13843,26 @@ function ContextPads(
   this._canvas = canvas;
   this._scopeFilter = scopeFilter;
 
-  this._overlaysByElement = new Map();
+  this._overlayCache = new Map();
+
+  this._handlerIdx = 0;
 
   this._handlers = [];
 
   this.registerHandler('bpmn:ExclusiveGateway', _handler_ExclusiveGatewayHandler__WEBPACK_IMPORTED_MODULE_0__.default);
-  this.registerHandler('bpmn:IntermediateCatchEvent', _handler_IntermediateCatchEventHandler__WEBPACK_IMPORTED_MODULE_1__.default);
-  this.registerHandler('bpmn:Activity', _handler_IntermediateCatchEventHandler__WEBPACK_IMPORTED_MODULE_1__.default);
+  this.registerHandler('bpmn:IntermediateCatchEvent', _handler_ContinueHandler__WEBPACK_IMPORTED_MODULE_1__.default);
+  this.registerHandler('bpmn:Activity', _handler_ContinueHandler__WEBPACK_IMPORTED_MODULE_1__.default);
 
   this.registerHandler('bpmn:EventBasedGateway', _handler_EventBasedGatewayHandler__WEBPACK_IMPORTED_MODULE_2__.default);
-
-  // TODO(nikku): restore or delete
-  // this.registerHandler('bpmn:SubProcess', ProcessHandler);
 
   this.registerHandler('bpmn:Activity', _handler_BoundaryEventHandler__WEBPACK_IMPORTED_MODULE_3__.default);
 
   this.registerHandler('bpmn:Process', _handler_StartEventHandler__WEBPACK_IMPORTED_MODULE_4__.default);
   this.registerHandler('bpmn:SubProcess', _handler_StartEventHandler__WEBPACK_IMPORTED_MODULE_4__.default);
   this.registerHandler('bpmn:Participant', _handler_StartEventHandler__WEBPACK_IMPORTED_MODULE_4__.default);
+  this.registerHandler('bpmn:Activity', _handler_PauseHandler__WEBPACK_IMPORTED_MODULE_5__.default);
 
-  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_5__.TOGGLE_MODE_EVENT, LOW_PRIORITY, context => {
+  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_6__.TOGGLE_MODE_EVENT, LOW_PRIORITY, context => {
     const active = context.active;
 
     if (active) {
@@ -13803,35 +13872,49 @@ function ContextPads(
     }
   });
 
-  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_5__.RESET_SIMULATION_EVENT, LOW_PRIORITY, () => {
+  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_6__.RESET_SIMULATION_EVENT, LOW_PRIORITY, () => {
     this.closeContextPads();
     this.openContextPads();
   });
 
-  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_5__.SCOPE_FILTER_CHANGED_EVENT, event => {
+  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_6__.SCOPE_FILTER_CHANGED_EVENT, event => {
 
-    const contextPads = (0,min_dom__WEBPACK_IMPORTED_MODULE_6__.queryAll)(
+    const showElements = (0,min_dom__WEBPACK_IMPORTED_MODULE_7__.queryAll)(
       '.djs-overlay-ts-context-menu [data-scope-ids]',
       overlays._overlayRoot
     );
 
-    for (const element of contextPads) {
+    for (const element of showElements) {
 
       const scopeIds = element.dataset.scopeIds.split(',');
 
       const shown = scopeIds.some(id => scopeFilter.isShown(id));
 
-      (0,min_dom__WEBPACK_IMPORTED_MODULE_6__.classes)(element).toggle('hidden', !shown);
+      (0,min_dom__WEBPACK_IMPORTED_MODULE_7__.classes)(element).toggle('hidden', !shown);
+    }
+
+
+    const hideElements = (0,min_dom__WEBPACK_IMPORTED_MODULE_7__.queryAll)(
+      '.djs-overlay-ts-context-menu [data-hide-scope-ids]',
+      overlays._overlayRoot
+    );
+
+    for (const element of hideElements) {
+
+      const scopeIds = element.dataset.hideScopeIds.split(',');
+
+      const shown = scopeIds.some(id => scopeFilter.isShown(id));
+
+      (0,min_dom__WEBPACK_IMPORTED_MODULE_7__.classes)(element).toggle('hidden', shown);
     }
   });
 
-  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_5__.ELEMENT_CHANGED_EVENT, LOW_PRIORITY, event => {
+  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_6__.ELEMENT_CHANGED_EVENT, LOW_PRIORITY, event => {
     const {
       element
     } = event;
 
-    this.closeElementContextPads(element);
-    this.openElementContextPads(element);
+    this.updateElementContextPads(element);
   });
 }
 
@@ -13845,6 +13928,8 @@ function ContextPads(
 ContextPads.prototype.registerHandler = function(type, handlerCls) {
   const handler = this._injector.instantiate(handlerCls);
 
+  handler.hash = String(this._handlerIdx++);
+
   this._handlers.push({ handler, type });
 };
 
@@ -13852,7 +13937,7 @@ ContextPads.prototype.getHandlers = function(element) {
 
   return (
     this._handlers.filter(
-      ({ type }) => (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_7__.is)(element, type)
+      ({ type }) => (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_8__.is)(element, type)
     ).map(
       ({ handler }) => handler
     )
@@ -13867,90 +13952,168 @@ ContextPads.prototype.openContextPads = function(parent) {
 
   this._elementRegistry.forEach((element) => {
     if (isAncestor(parent, element)) {
-      this.openElementContextPads(element);
+      this.updateElementContextPads(element);
     }
   });
 };
 
-ContextPads.prototype.registerContextPad = function(element, overlayId) {
-
-  const overlaysByElement = this._overlaysByElement;
-
-  if (!overlaysByElement.has(element)) {
-    overlaysByElement.set(element, []);
-  }
-
-  const overlayIds = overlaysByElement.get(element);
-
-  overlayIds.push(overlayId);
+ContextPads.prototype._getOverlays = function(hash) {
+  return this._overlayCache.get(hash) || [];
 };
 
-ContextPads.prototype.openElementContextPads = function(element) {
+ContextPads.prototype._addOverlay = function(element, options) {
 
-  const contextPads = [];
+  const {
+    handlerHash
+  } = options;
 
-  for (const handler of this.getHandlers(element)) {
-    const additionalPads = handler.createContextPads(element) || [];
-
-    contextPads.push(...additionalPads.filter(p => p));
+  if (!handlerHash) {
+    throw new Error('<handlerHash> required');
   }
 
-  for (const contextPad of contextPads) {
-    const position = {
+  const overlayId = this._overlays.add(element, 'ts-context-menu', {
+    ...options,
+    position: {
       top: OFFSET_TOP,
       left: OFFSET_LEFT
-    };
+    },
+    show: {
+      minZoom: 0.5
+    }
+  });
 
-    if (contextPad.scopes) {
-      const scopes = contextPad.scopes();
+  const overlay = this._overlays.get(overlayId);
 
-      contextPad.html.dataset.scopeIds = scopes.map(s => s.id).join(',');
+  const overlayCache = this._overlayCache;
+
+  if (!overlayCache.has(handlerHash)) {
+    overlayCache.set(handlerHash, []);
+  }
+
+  overlayCache.get(handlerHash).push(overlay);
+};
+
+ContextPads.prototype._removeOverlay = function(overlay) {
+
+  const {
+    id,
+    handlerHash
+  } = overlay;
+
+  // remove overlay
+  this._overlays.remove(id);
+
+  // remove from overlay cache
+  const overlays = this._overlayCache.get(handlerHash) || [];
+
+  const idx = overlays.indexOf(overlay);
+
+  if (idx !== -1) {
+    overlays.splice(idx, 1);
+  }
+};
+
+ContextPads.prototype.updateElementContextPads = function(element) {
+  for (const handler of this.getHandlers(element)) {
+    this._updateElementContextPads(element, handler);
+  }
+};
+
+ContextPads.prototype._updateElementContextPads = function(element, handler) {
+
+  const contextPads = (handler.createContextPads(element) || []).filter(p => p);
+
+  const handlerHash = `${element.id}------${handler.hash}`;
+
+  const existingOverlays = this._getOverlays(handlerHash);
+
+  const updatedOverlays = [];
+
+  for (const contextPad of contextPads) {
+
+    const {
+      element,
+      scopes: _scopes,
+      hideScopes: _hideScopes,
+      action: _action,
+      html: _html
+    } = contextPad;
+
+
+    const hash = `${contextPad.element.id}-------${_html}`;
+
+    let existingOverlay = existingOverlays.find(
+      o => o.hash === hash
+    );
+
+    const html = existingOverlay && existingOverlay.html || (0,min_dom__WEBPACK_IMPORTED_MODULE_7__.domify)(_html);
+
+    if (_scopes) {
+      const scopes = _scopes();
+
+      html.dataset.scopeIds = scopes.map(s => s.id).join(',');
 
       const shownScopes = scopes.filter(s => this._scopeFilter.isShown(s));
 
-      (0,min_dom__WEBPACK_IMPORTED_MODULE_6__.classes)(contextPad.html).toggle('hidden', shownScopes.length === 0);
+      (0,min_dom__WEBPACK_IMPORTED_MODULE_7__.classes)(html).toggle('hidden', shownScopes.length === 0);
     }
 
-    if ('action' in contextPad) {
+    if (_hideScopes) {
+      const scopes = _hideScopes();
 
-      min_dom__WEBPACK_IMPORTED_MODULE_6__.event.bind(contextPad.html, 'click', event => {
+      html.dataset.hideScopeIds = scopes.map(s => s.id).join(',');
+
+      const shownScopes = scopes.filter(s => this._scopeFilter.isShown(s));
+
+      (0,min_dom__WEBPACK_IMPORTED_MODULE_7__.classes)(html).toggle('hidden', shownScopes.length > 0);
+    }
+
+    if (existingOverlay) {
+      updatedOverlays.push(existingOverlay);
+
+      continue;
+    }
+
+    if (_action) {
+
+      min_dom__WEBPACK_IMPORTED_MODULE_7__.event.bind(html, 'click', event => {
         event.preventDefault();
 
-        const scopes = contextPad.scopes
-          ? contextPad.scopes().filter(s => this._scopeFilter.isShown(s))
+        const scopes = _scopes
+          ? _scopes().filter(s => this._scopeFilter.isShown(s))
           : null;
 
-        contextPad.action(scopes);
+        _action(scopes);
       });
     }
 
-    const overlayId = this._overlays.add(contextPad.element, 'ts-context-menu', {
-      position: position,
-      html: contextPad.html,
-      show: {
-        minZoom: 0.5
-      }
+    this._addOverlay(element, {
+      hash,
+      handlerHash,
+      html
     });
+  }
 
-    this.registerContextPad(element, overlayId);
+  for (const existingOverlay of existingOverlays) {
+    if (!updatedOverlays.includes(existingOverlay)) {
+      this._removeOverlay(existingOverlay);
+    }
   }
 };
 
 ContextPads.prototype.closeContextPads = function() {
-  for (const element of this._overlaysByElement.keys()) {
-    this.closeElementContextPads(element);
+  for (const overlays of this._overlayCache.values()) {
+
+    for (const overlay of overlays) {
+      this._closeOverlay(overlay);
+    }
   }
+
+  this._overlayCache.clear();
 };
 
-ContextPads.prototype.closeElementContextPads = function(element) {
-
-  const overlayIds = this._overlaysByElement.get(element) || [];
-
-  for (const overlayId of overlayIds) {
-    this._overlays.remove(overlayId);
-  }
-
-  overlayIds.length = 0;
+ContextPads.prototype._closeOverlay = function(overlay) {
+  this._overlays.remove(overlay.id);
 };
 
 ContextPads.$inject = [
@@ -13991,7 +14154,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (/* binding */ BoundaryEventHandler)
 /* harmony export */ });
-/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
+/* harmony import */ var _icons__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../icons */ "../bpmn-js-token-simulation/lib/icons/index.js");
 
 
 
@@ -14013,13 +14176,11 @@ BoundaryEventHandler.prototype.createBoundaryContextPad = function(element) {
     });
   };
 
-  if (!scopes().length) {
-    return;
-  }
-
-  const html = (0,min_dom__WEBPACK_IMPORTED_MODULE_0__.domify)(
-    '<div class="context-pad" title="Trigger Event"><i class="fa fa-play"></i></div>'
-  );
+  const html = `
+    <div class="bts-context-pad" title="Trigger Event">
+      ${(0,_icons__WEBPACK_IMPORTED_MODULE_0__.PlayIcon)()}
+    </div>
+  `;
 
   // TODO(nikku): do not show on compenstation boundary
 
@@ -14049,6 +14210,68 @@ BoundaryEventHandler.$inject = [
 
 /***/ }),
 
+/***/ "../bpmn-js-token-simulation/lib/features/context-pads/handler/ContinueHandler.js":
+/*!****************************************************************************************!*\
+  !*** ../bpmn-js-token-simulation/lib/features/context-pads/handler/ContinueHandler.js ***!
+  \****************************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ ContinueHandler)
+/* harmony export */ });
+/* harmony import */ var _icons__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../icons */ "../bpmn-js-token-simulation/lib/icons/index.js");
+
+
+
+function ContinueHandler(simulator) {
+  this._simulator = simulator;
+}
+
+ContinueHandler.prototype.createContextPads = function(element) {
+
+  const scopes = () => this._findScopes(scope => {
+    return (
+      !scope.destroyed &&
+      scope.element === element &&
+      !scope.children.length
+    );
+  });
+
+  const html = `
+    <div class="bts-context-pad" title="Trigger Event">
+      ${ (0,_icons__WEBPACK_IMPORTED_MODULE_0__.PlayIcon)() }
+    </div>
+  `;
+
+  const action = (scopes) => {
+    this._simulator.signal({
+      element,
+      scope: scopes[0]
+    });
+  };
+
+  return [
+    {
+      action,
+      element,
+      html,
+      scopes
+    }
+  ];
+};
+
+ContinueHandler.prototype._findScopes = function(options) {
+  return this._simulator.findScopes(options);
+};
+
+ContinueHandler.$inject = [
+  'simulator'
+];
+
+/***/ }),
+
 /***/ "../bpmn-js-token-simulation/lib/features/context-pads/handler/EventBasedGatewayHandler.js":
 /*!*************************************************************************************************!*\
   !*** ../bpmn-js-token-simulation/lib/features/context-pads/handler/EventBasedGatewayHandler.js ***!
@@ -14060,8 +14283,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (/* binding */ EventBasedGatewayHandler)
 /* harmony export */ });
-/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
 /* harmony import */ var _util_ElementHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../util/ElementHelper */ "../bpmn-js-token-simulation/lib/util/ElementHelper.js");
+/* harmony import */ var _icons__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../icons */ "../bpmn-js-token-simulation/lib/icons/index.js");
 
 
 
@@ -14105,13 +14328,11 @@ EventBasedGatewayHandler.prototype.createCatchEventPad = function(element) {
     });
   };
 
-  if (!scopes().length) {
-    return;
-  }
-
-  const html = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(
-    '<div class="context-pad" title="Trigger Event"><i class="fa fa-play"></i></div>'
-  );
+  const html = `
+    <div class="bts-context-pad" title="Trigger Event">
+      ${(0,_icons__WEBPACK_IMPORTED_MODULE_1__.PlayIcon)()}
+    </div>
+  `;
 
   const action = (scopes) => {
     this._simulator.signal({
@@ -14149,8 +14370,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (/* binding */ ExclusiveGatewayHandler)
 /* harmony export */ });
-/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
 /* harmony import */ var _util_ElementHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../util/ElementHelper */ "../bpmn-js-token-simulation/lib/util/ElementHelper.js");
+/* harmony import */ var _icons__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../icons */ "../bpmn-js-token-simulation/lib/icons/index.js");
 
 
 
@@ -14170,16 +14391,19 @@ ExclusiveGatewayHandler.prototype.createContextPads = function(element) {
     return;
   }
 
-  const html = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(
-    '<div class="context-pad" title="Set Sequence Flow"><i class="fa fa-code-fork"></i></div>'
-  );
+  const html = `
+    <div class="bts-context-pad" title="Set Sequence Flow">
+      ${(0,_icons__WEBPACK_IMPORTED_MODULE_1__.ForkIcon)()}
+    </div>
+  `;
 
-  min_dom__WEBPACK_IMPORTED_MODULE_1__.event.bind(html, 'click', () => {
+  const action = () => {
     this._exclusiveGatewaySettings.setSequenceFlow(element);
-  });
+  };
 
   return [
     {
+      action,
       element,
       html
     }
@@ -14192,65 +14416,84 @@ ExclusiveGatewayHandler.$inject = [
 
 /***/ }),
 
-/***/ "../bpmn-js-token-simulation/lib/features/context-pads/handler/IntermediateCatchEventHandler.js":
-/*!******************************************************************************************************!*\
-  !*** ../bpmn-js-token-simulation/lib/features/context-pads/handler/IntermediateCatchEventHandler.js ***!
-  \******************************************************************************************************/
+/***/ "../bpmn-js-token-simulation/lib/features/context-pads/handler/PauseHandler.js":
+/*!*************************************************************************************!*\
+  !*** ../bpmn-js-token-simulation/lib/features/context-pads/handler/PauseHandler.js ***!
+  \*************************************************************************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "default": () => (/* binding */ IntermeditateCatchEventHandler)
+/* harmony export */   "default": () => (/* binding */ PauseHandler)
 /* harmony export */ });
-/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
+/* harmony import */ var _icons__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../icons */ "../bpmn-js-token-simulation/lib/icons/index.js");
 
 
 
-function IntermeditateCatchEventHandler(simulator) {
+function PauseHandler(simulator) {
   this._simulator = simulator;
 }
 
-IntermeditateCatchEventHandler.prototype.createContextPads = function(element) {
+PauseHandler.prototype.createContextPads = function(element) {
 
-  const scopes = () => this._findScopes(scope => {
-    return (
-      !scope.destroyed &&
-      scope.element === element &&
-      !scope.children.length
-    );
-  });
-
-  if (!scopes().length) {
-    return;
+  if (element.businessObject.triggeredByEvent) {
+    return [];
   }
 
-  const html = (0,min_dom__WEBPACK_IMPORTED_MODULE_0__.domify)(
-    '<div class="context-pad" title="Trigger Event"><i class="fa fa-play"></i></div>'
-  );
-
-  const action = (scopes) => {
-    this._simulator.signal({
-      element,
-      scope: scopes[0]
-    });
-  };
-
   return [
-    {
-      action,
-      element,
-      html,
-      scopes
-    }
+    this.createPauseContextPad(element)
   ];
 };
 
-IntermeditateCatchEventHandler.prototype._findScopes = function(options) {
+PauseHandler.prototype.createPauseContextPad = function(element) {
+
+  const scopes = () => this._findScopes({
+    element
+  }).filter(scope => !scope.children.length);
+
+  const wait = this._isPaused(element);
+
+  const html = `
+    <div class="bts-context-pad ${ wait ? '' : 'show-hover' }" title="${ wait ? 'Remove' : 'Add' } pause point">
+      ${ (wait ? _icons__WEBPACK_IMPORTED_MODULE_0__.RemovePauseIcon : _icons__WEBPACK_IMPORTED_MODULE_0__.PauseIcon)('show-hover') }
+      ${ (0,_icons__WEBPACK_IMPORTED_MODULE_0__.PauseIcon)('hide-hover') }
+    </div>
+  `;
+
+  const action = () => {
+
+    this._togglePaused(element);
+  };
+
+  return {
+    action,
+    element,
+    hideScopes: scopes,
+    html
+  };
+};
+
+PauseHandler.prototype._isPaused = function(element) {
+
+  const {
+    wait
+  } = this._simulator.getConfig(element);
+
+  return wait;
+};
+
+PauseHandler.prototype._togglePaused = function(element) {
+  const wait = !this._isPaused(element);
+
+  this._simulator.waitAtElement(element, wait);
+};
+
+PauseHandler.prototype._findScopes = function(options) {
   return this._simulator.findScopes(options);
 };
 
-IntermeditateCatchEventHandler.$inject = [
+PauseHandler.$inject = [
   'simulator'
 ];
 
@@ -14267,8 +14510,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (/* binding */ StartEventHandler)
 /* harmony export */ });
-/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
 /* harmony import */ var _util_ElementHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../util/ElementHelper */ "../bpmn-js-token-simulation/lib/util/ElementHelper.js");
+/* harmony import */ var _util_ElementHelper__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../util/ElementHelper */ "../bpmn-js-token-simulation/node_modules/bpmn-js/lib/util/ModelUtil.js");
+/* harmony import */ var _icons__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../icons */ "../bpmn-js-token-simulation/lib/icons/index.js");
 
 
 
@@ -14304,16 +14548,13 @@ StartEventHandler.prototype.createStartEventContextPad = function(element, paren
     scopes = () => this._findScopes({
       element: parentElement.parent
     });
-
-    // no parent scope for event sub-process
-    if (!scopes().length) {
-      return;
-    }
   }
 
-  const html = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(
-    '<div class="context-pad"><i class="fa fa-play"></i></div>'
-  );
+  const html = `
+    <div class="bts-context-pad">
+      ${(0,_icons__WEBPACK_IMPORTED_MODULE_1__.PlayIcon)()}
+    </div>
+  `;
 
   const action = (scopes) => {
     const parentScope = scopes && scopes[0];
@@ -14365,7 +14606,7 @@ function findStartEvents(processElement) {
 }
 
 function isEventSubProcess(element) {
-  return (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_0__.getBusinessObject)(element).triggeredByEvent;
+  return (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_2__.getBusinessObject)(element).triggeredByEvent;
 }
 
 function isStartEvent(element) {
@@ -14650,6 +14891,114 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ }),
 
+/***/ "../bpmn-js-token-simulation/lib/features/element-colors/ElementColors.js":
+/*!********************************************************************************!*\
+  !*** ../bpmn-js-token-simulation/lib/features/element-colors/ElementColors.js ***!
+  \********************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ ElementColors)
+/* harmony export */ });
+function ElementColors(elementRegistry, graphicsFactory) {
+  this._elementRegistry = elementRegistry;
+  this._graphicsFactory = graphicsFactory;
+}
+
+ElementColors.$inject = [
+  'elementRegistry',
+  'graphicsFactory'
+];
+
+ElementColors.prototype.get = function(element) {
+
+  const di = getDi(element);
+
+  if (!di) {
+    return undefined;
+  }
+
+  // reading in accordance with bpmn-js@8.7+,
+  // BPMN-in-Color specification
+  if (isLabel(element)) {
+    return {
+      stroke: di.label && di.label.get('color')
+    };
+  } else {
+    return {
+      fill: di.get('background-color'),
+      stroke: di.get('border-color')
+    };
+  }
+};
+
+ElementColors.prototype.set = function(element, colors) {
+
+  const {
+    fill,
+    stroke
+  } = colors;
+
+  const di = getDi(element);
+
+  if (!di) {
+    return;
+  }
+
+  // writing in accordance with bpmn-js@8.7+,
+  // BPMN-in-Color specification
+  if (isLabel(element)) {
+    di.label && di.label.set('color', stroke);
+  } else {
+    di.set('background-color', fill);
+    di.set('border-color', stroke);
+  }
+
+  this._forceRedraw(element);
+};
+
+ElementColors.prototype._forceRedraw = function(element) {
+  const gfx = this._elementRegistry.getGraphics(element);
+  const type = element.waypoints ? 'connection' : 'shape';
+
+  this._graphicsFactory.update(type, element, gfx);
+};
+
+
+// helpers /////////////////
+
+function getDi(element) {
+  return element.businessObject && element.businessObject.di;
+}
+
+function isLabel(element) {
+  return 'labelTarget' in element;
+}
+
+/***/ }),
+
+/***/ "../bpmn-js-token-simulation/lib/features/element-colors/index.js":
+/*!************************************************************************!*\
+  !*** ../bpmn-js-token-simulation/lib/features/element-colors/index.js ***!
+  \************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _ElementColors__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./ElementColors */ "../bpmn-js-token-simulation/lib/features/element-colors/ElementColors.js");
+
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  elementColors: [ 'type', _ElementColors__WEBPACK_IMPORTED_MODULE_0__.default ]
+});
+
+/***/ }),
+
 /***/ "../bpmn-js-token-simulation/lib/features/element-notifications/ElementNotifications.js":
 /*!**********************************************************************************************!*\
   !*** ../bpmn-js-token-simulation/lib/features/element-notifications/ElementNotifications.js ***!
@@ -14703,14 +15052,14 @@ ElementNotifications.prototype.addElementNotification = function(element, option
     : '';
 
   const html = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(`
-    <div class="element-notification ${ type || '' }" ${colorMarkup}>
-      ${ icon ? `<i class="fa ${ icon }"></i>` : '' }
-      <span class="text">${ text }</span>
+    <div class="bts-element-notification ${ type || '' }" ${colorMarkup}>
+      ${ icon || '' }
+      <span class="bts-text">${ text }</span>
     </div>
   `);
 
   this._overlays.add(element, 'element-notification', {
-    position: position,
+    position,
     html: html,
     show: {
       minZoom: 0.5
@@ -14761,9 +15110,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (/* binding */ ElementSupport)
 /* harmony export */ });
-/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
+/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
 /* harmony import */ var _util_ElementHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../util/ElementHelper */ "../bpmn-js-token-simulation/lib/util/ElementHelper.js");
 /* harmony import */ var _util_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var _icons__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../icons */ "../bpmn-js-token-simulation/lib/icons/index.js");
+
+
 
 
 
@@ -14829,7 +15181,7 @@ ElementSupport.prototype.enable = function() {
 
     this._notifications.showNotification({
       text: 'Found unsupported elements',
-      icon: 'fa-exclamation-triangle',
+      icon: (0,_icons__WEBPACK_IMPORTED_MODULE_2__.ExclamationTriangleIcon)(),
       type: 'warning',
       ttl: 5000
     });
@@ -14839,13 +15191,13 @@ ElementSupport.prototype.enable = function() {
 };
 
 ElementSupport.prototype.clear = function() {
-  (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(this._canvasParent).remove('warning');
+  (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.classes)(this._canvasParent).remove('warning');
 };
 
 ElementSupport.prototype.showWarning = function(element) {
   this._elementNotifications.addElementNotification(element, {
     type: 'warning',
-    icon: 'fa-exclamation-triangle',
+    icon: (0,_icons__WEBPACK_IMPORTED_MODULE_2__.ExclamationTriangleIcon)(),
     text: 'Not supported'
   });
 };
@@ -14993,11 +15345,9 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-const STYLE = getComputedStyle(document.documentElement);
 
-const NOT_SELECTED_COLOR = STYLE.getPropertyValue('--token-simulation-grey-lighten-56');
-const SELECTED_COLOR = STYLE.getPropertyValue('--token-simulation-grey-darken-30');
-
+const SELECTED_COLOR = '--token-simulation-grey-darken-30';
+const NOT_SELECTED_COLOR = '--token-simulation-grey-lighten-56';
 
 function getNext(gateway, sequenceFlow) {
   var outgoing = gateway.outgoing.filter(isSequenceFlow);
@@ -15018,11 +15368,12 @@ function isSequenceFlow(connection) {
 
 function ExclusiveGatewaySettings(
     eventBus, elementRegistry,
-    graphicsFactory, simulator) {
+    elementColors, simulator, simulationStyles) {
 
   this._elementRegistry = elementRegistry;
-  this._graphicsFactory = graphicsFactory;
+  this._elementColors = elementColors;
   this._simulator = simulator;
+  this._simulationStyles = simulationStyles;
 
   eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_MODE_EVENT, event => {
     if (event.active) {
@@ -15064,7 +15415,8 @@ ExclusiveGatewaySettings.prototype.setSequenceFlow = function(gateway) {
 
   const outgoing = gateway.outgoing.filter(isSequenceFlow);
 
-  if (!outgoing.length) {
+  // not forking
+  if (outgoing.length < 2) {
     return;
   }
 
@@ -15088,33 +15440,22 @@ ExclusiveGatewaySettings.prototype.setSequenceFlow = function(gateway) {
 
   // set colors
   gateway.outgoing.forEach(outgoing => {
-    this.setColor(
-      outgoing, outgoing === newActiveOutgoing ? SELECTED_COLOR : NOT_SELECTED_COLOR
-    );
+
+    const style = outgoing === newActiveOutgoing ? SELECTED_COLOR : NOT_SELECTED_COLOR;
+    const stroke = this._simulationStyles.get(style);
+
+    this._elementColors.set(outgoing, {
+      stroke
+    });
   });
-};
-
-ExclusiveGatewaySettings.prototype.setColor = function(sequenceFlow, color) {
-
-  const label = sequenceFlow.label;
-  const businessObject = sequenceFlow.businessObject;
-
-  businessObject.di.set('stroke', color);
-
-  const gfx = this._elementRegistry.getGraphics(sequenceFlow);
-
-  this._graphicsFactory.update('connection', sequenceFlow, gfx);
-
-  if (label) {
-    this._graphicsFactory.update('connection', label, this._elementRegistry.getGraphics(label));
-  }
 };
 
 ExclusiveGatewaySettings.$inject = [
   'eventBus',
   'elementRegistry',
-  'graphicsFactory',
-  'simulator'
+  'elementColors',
+  'simulator',
+  'simulationStyles'
 ];
 
 /***/ }),
@@ -15130,11 +15471,19 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
-/* harmony import */ var _ExclusiveGatewaySettings__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./ExclusiveGatewaySettings */ "../bpmn-js-token-simulation/lib/features/exclusive-gateway-settings/ExclusiveGatewaySettings.js");
+/* harmony import */ var _ExclusiveGatewaySettings__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./ExclusiveGatewaySettings */ "../bpmn-js-token-simulation/lib/features/exclusive-gateway-settings/ExclusiveGatewaySettings.js");
+/* harmony import */ var _element_colors__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../element-colors */ "../bpmn-js-token-simulation/lib/features/element-colors/index.js");
+/* harmony import */ var _simulation_styles__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../simulation-styles */ "../bpmn-js-token-simulation/lib/features/simulation-styles/index.js");
+
+
 
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
-  exclusiveGatewaySettings: [ 'type', _ExclusiveGatewaySettings__WEBPACK_IMPORTED_MODULE_0__.default ]
+  __depends__: [
+    _element_colors__WEBPACK_IMPORTED_MODULE_0__.default,
+    _simulation_styles__WEBPACK_IMPORTED_MODULE_1__.default
+  ],
+  exclusiveGatewaySettings: [ 'type', _ExclusiveGatewaySettings__WEBPACK_IMPORTED_MODULE_2__.default ]
 });
 
 /***/ }),
@@ -15268,10 +15617,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (/* binding */ Log)
 /* harmony export */ });
-/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
-/* harmony import */ var _util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../util/ElementHelper */ "../bpmn-js-token-simulation/lib/util/ElementHelper.js");
-/* harmony import */ var diagram_js_lib_util_EscapeUtil__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! diagram-js/lib/util/EscapeUtil */ "../bpmn-js-token-simulation/node_modules/diagram-js/lib/util/EscapeUtil.js");
-/* harmony import */ var _util_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
+/* harmony import */ var _util_ElementHelper__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../util/ElementHelper */ "../bpmn-js-token-simulation/lib/util/ElementHelper.js");
+/* harmony import */ var _util_ElementHelper__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../util/ElementHelper */ "../bpmn-js-token-simulation/node_modules/bpmn-js/lib/util/ModelUtil.js");
+/* harmony import */ var diagram_js_lib_util_EscapeUtil__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! diagram-js/lib/util/EscapeUtil */ "../bpmn-js-token-simulation/node_modules/diagram-js/lib/util/EscapeUtil.js");
+/* harmony import */ var _util_EventHelper__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var _icons__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../icons */ "../bpmn-js-token-simulation/lib/icons/index.js");
 
 
 
@@ -15280,11 +15631,15 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
+
+
+
+const ICON_INFO = (0,_icons__WEBPACK_IMPORTED_MODULE_0__.InfoIcon)();
 
 function getElementName(element) {
   const name = element && element.businessObject.name;
 
-  return name && (0,diagram_js_lib_util_EscapeUtil__WEBPACK_IMPORTED_MODULE_0__.escapeHTML)(name);
+  return name && (0,diagram_js_lib_util_EscapeUtil__WEBPACK_IMPORTED_MODULE_1__.escapeHTML)(name);
 }
 
 
@@ -15300,17 +15655,17 @@ function Log(
 
   this._init();
 
-  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.SCOPE_FILTER_CHANGED_EVENT, event => {
-    const allElements = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.queryAll)('.entry[data-scope-id]', this._container);
+  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_2__.SCOPE_FILTER_CHANGED_EVENT, event => {
+    const allElements = (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.queryAll)('.bts-entry[data-scope-id]', this._container);
 
     for (const element of allElements) {
       const scopeId = element.dataset.scopeId;
 
-      (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(element).toggle('inactive', !this._scopeFilter.isShown(scopeId));
+      (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.classes)(element).toggle('inactive', !this._scopeFilter.isShown(scopeId));
     }
   });
 
-  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.SCOPE_DESTROYED_EVENT, event => {
+  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_2__.SCOPE_DESTROYED_EVENT, event => {
     const {
       scope
     } = event;
@@ -15336,7 +15691,7 @@ function Log(
       return;
     }
 
-    const isSubProcess = (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__.is)(scopeElement, 'bpmn:SubProcess');
+    const isSubProcess = (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_4__.is)(scopeElement, 'bpmn:SubProcess');
 
     const text = `${
       isSubProcess ? (getElementName(scopeElement) || 'SubProcess') : 'Process'
@@ -15346,12 +15701,12 @@ function Log(
 
     this.log({
       text,
-      icon: isCompletion ? 'fa-check-circle' : 'fa-times-circle',
+      icon: isCompletion ? (0,_icons__WEBPACK_IMPORTED_MODULE_0__.CheckCircleIcon)() : (0,_icons__WEBPACK_IMPORTED_MODULE_0__.TimesCircleIcon)(),
       scope
     });
   });
 
-  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.SCOPE_CREATE_EVENT, event => {
+  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_2__.SCOPE_CREATE_EVENT, event => {
     const {
       scope
     } = event;
@@ -15370,7 +15725,7 @@ function Log(
       return;
     }
 
-    const isSubProcess = (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__.is)(scopeElement, 'bpmn:SubProcess');
+    const isSubProcess = (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_4__.is)(scopeElement, 'bpmn:SubProcess');
 
     const text = `${
       isSubProcess ? (getElementName(scopeElement) || 'SubProcess') : 'Process'
@@ -15378,12 +15733,12 @@ function Log(
 
     this.log({
       text,
-      icon: 'fa-check-circle',
+      icon: (0,_icons__WEBPACK_IMPORTED_MODULE_0__.CheckCircleIcon)(),
       scope
     });
   });
 
-  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TRACE_EVENT, event => {
+  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_2__.TRACE_EVENT, event => {
 
     const {
       action,
@@ -15399,61 +15754,61 @@ function Log(
 
     const elementName = getElementName(element);
 
-    if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:BusinessRuleTask')) {
+    if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_4__.is)(element, 'bpmn:BusinessRuleTask')) {
       this.log({
         text: elementName || 'Business Rule Task',
         icon: 'bpmn-icon-business-rule',
         scope
       });
-    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:CallActivity')) {
+    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_4__.is)(element, 'bpmn:CallActivity')) {
       this.log({
         text: elementName || 'Call Activity',
         icon: 'bpmn-icon-call-activity',
         scope
       });
-    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:IntermediateCatchEvent') || (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:IntermediateThrowEvent')) {
+    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_4__.is)(element, 'bpmn:IntermediateCatchEvent') || (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_4__.is)(element, 'bpmn:IntermediateThrowEvent')) {
       this.log({
         text: elementName || 'Intermediate Event',
         icon: 'bpmn-icon-intermediate-event-none',
         scope
       });
-    } if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:BoundaryEvent')) {
+    } if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_4__.is)(element, 'bpmn:BoundaryEvent')) {
       this.log({
         text: elementName || 'Boundary Event',
         icon: 'bpmn-icon-intermediate-event-none',
         scope
       });
-    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:ManualTask')) {
+    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_4__.is)(element, 'bpmn:ManualTask')) {
       this.log({
         text: elementName || 'Manual Task',
         icon: 'bpmn-icon-manual',
         scope
       });
-    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:ScriptTask')) {
+    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_4__.is)(element, 'bpmn:ScriptTask')) {
       this.log({
         text: elementName || 'Script Task',
         icon: 'bpmn-icon-script',
         scope
       });
-    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:ServiceTask')) {
+    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_4__.is)(element, 'bpmn:ServiceTask')) {
       this.log({
         text: elementName || 'Service Task',
         icon: 'bpmn-icon-service',
         scope
       });
-    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:Task')) {
+    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_4__.is)(element, 'bpmn:Task')) {
       this.log({
         text: elementName || 'Task',
         icon: 'bpmn-icon-task',
         scope
       });
-    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:UserTask')) {
+    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_4__.is)(element, 'bpmn:UserTask')) {
       this.log({
         text: elementName || 'User Task',
         icon: 'bpmn-icon-user',
         scope
       });
-    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:ExclusiveGateway')) {
+    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_4__.is)(element, 'bpmn:ExclusiveGateway')) {
       if (element.outgoing.length < 2) {
         return;
       }
@@ -15463,7 +15818,7 @@ function Log(
       let text = elementName || 'Gateway';
 
       if (sequenceFlowName) {
-        text = text.concat(' <i class="fa fa-angle-right" aria-hidden="true"></i> ' + sequenceFlowName);
+        text = text.concat(` ${ (0,_icons__WEBPACK_IMPORTED_MODULE_0__.AngleRightIcon)() } ${ sequenceFlowName }`);
       }
 
       this.log({
@@ -15471,8 +15826,8 @@ function Log(
         icon: 'bpmn-icon-gateway-xor',
         scope
       });
-    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:EndEvent')) {
-      if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__.isTypedEvent)((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__.getBusinessObject)(element), 'bpmn:TerminateEventDefinition')) {
+    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_4__.is)(element, 'bpmn:EndEvent')) {
+      if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_4__.isTypedEvent)((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_5__.getBusinessObject)(element), 'bpmn:TerminateEventDefinition')) {
         this.log({
           text: elementName || 'Terminate End Event',
           icon: 'bpmn-icon-end-event-terminate',
@@ -15485,7 +15840,7 @@ function Log(
           scope
         });
       }
-    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:StartEvent')) {
+    } else if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_4__.is)(element, 'bpmn:StartEvent')) {
       this.log({
         text: elementName || 'Start Event',
         icon: 'bpmn-icon-start-event-none',
@@ -15496,64 +15851,64 @@ function Log(
 
 
   eventBus.on([
-    _util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_MODE_EVENT,
-    _util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.RESET_SIMULATION_EVENT
+    _util_EventHelper__WEBPACK_IMPORTED_MODULE_2__.TOGGLE_MODE_EVENT,
+    _util_EventHelper__WEBPACK_IMPORTED_MODULE_2__.RESET_SIMULATION_EVENT
   ], event => {
     this.clear();
 
-    (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(this._container).add('hidden');
+    (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.classes)(this._container).add('hidden');
   });
 }
 
 Log.prototype._init = function() {
-  this._container = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(
-    '<div class="token-simulation-log hidden">' +
-      '<div class="header">' +
-        '<i class="fa fa-align-left"></i>' +
-        '<button class="close">' +
-          '<i class="fa fa-times" aria-hidden="true"></i>' +
-        '</button>' +
-      '</div>' +
-      '<div class="content">' +
-        '<p class="entry placeholder">No Entries</p>' +
-      '</div>' +
-    '</div>'
-  );
+  this._container = (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.domify)(`
+    <div class="bts-log hidden">
+      <div class="bts-header">
+        ${ (0,_icons__WEBPACK_IMPORTED_MODULE_0__.LogIcon)('bts-log-icon') }
+        <button class="bts-close">
+          ${ (0,_icons__WEBPACK_IMPORTED_MODULE_0__.TimesIcon)() }
+        </button>
+      </div>
+      <div class="bts-content">
+        <p class="bts-entry placeholder">No Entries</p>
+      </div>
+    </div>
+  `);
 
-  this._placeholder = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.query)('.placeholder', this._container);
+  this._placeholder = (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.query)('.bts-placeholder', this._container);
 
-  this._content = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.query)('.content', this._container);
+  this._content = (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.query)('.bts-content', this._container);
 
-  min_dom__WEBPACK_IMPORTED_MODULE_2__.event.bind(this._content, 'wheel', event => {
+  min_dom__WEBPACK_IMPORTED_MODULE_3__.event.bind(this._content, 'wheel', event => {
     event.stopPropagation();
   });
 
-  min_dom__WEBPACK_IMPORTED_MODULE_2__.event.bind(this._content, 'mousedown', event => {
+  min_dom__WEBPACK_IMPORTED_MODULE_3__.event.bind(this._content, 'mousedown', event => {
     event.stopPropagation();
   });
 
-  this._close = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.query)('.close', this._container);
+  this._close = (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.query)('.bts-close', this._container);
 
-  min_dom__WEBPACK_IMPORTED_MODULE_2__.event.bind(this._close, 'click', () => {
-    (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(this._container).add('hidden');
+  min_dom__WEBPACK_IMPORTED_MODULE_3__.event.bind(this._close, 'click', () => {
+    (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.classes)(this._container).add('hidden');
   });
 
-  this._icon = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.query)('.fa-align-left', this._container);
+  this._icon = (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.query)('.bts-log-icon', this._container);
 
-  min_dom__WEBPACK_IMPORTED_MODULE_2__.event.bind(this._icon, 'click', () => {
-    (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(this._container).add('hidden');
+  min_dom__WEBPACK_IMPORTED_MODULE_3__.event.bind(this._icon, 'click', () => {
+    (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.classes)(this._container).add('hidden');
   });
 
   this._canvas.getContainer().appendChild(this._container);
 
-  this.paletteEntry = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(`
-    <div class="entry" title="Show Simulation Log">
-      <i class="fa fa-align-left"></i>
+  this.paletteEntry = (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.domify)(`
+    <div class="bts-entry" title="Show Simulation Log">
+      ${ (0,_icons__WEBPACK_IMPORTED_MODULE_0__.LogIcon)() }
     </div>
   `);
 
-  min_dom__WEBPACK_IMPORTED_MODULE_2__.event.bind(this.paletteEntry, 'click', () => {
-    (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(this._container).remove('hidden');
+  min_dom__WEBPACK_IMPORTED_MODULE_3__.event.bind(this.paletteEntry, 'click', () => {
+    (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.classes)(this._container).remove('hidden');
   });
 
   this._tokenSimulationPalette.addEntry(this.paletteEntry, 3);
@@ -15562,10 +15917,10 @@ Log.prototype._init = function() {
 Log.prototype.toggle = function() {
   const container = this._container;
 
-  if ((0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(container).has('hidden')) {
-    (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(container).remove('hidden');
+  if ((0,min_dom__WEBPACK_IMPORTED_MODULE_3__.classes)(container).has('hidden')) {
+    (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.classes)(container).remove('hidden');
   } else {
-    (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(container).add('hidden');
+    (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.classes)(container).add('hidden');
   }
 };
 
@@ -15574,11 +15929,11 @@ Log.prototype.log = function(options) {
   const {
     text,
     type = 'info',
-    icon = 'fa-info',
+    icon = ICON_INFO,
     scope
   } = options;
 
-  (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(this._placeholder).add('hidden');
+  (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.classes)(this._placeholder).add('hidden');
 
   const date = new Date();
 
@@ -15586,32 +15941,30 @@ Log.prototype.log = function(options) {
 
   this._notifications.showNotification(options);
 
-  const iconMarkup = `<i class="${icon} ${
-    icon.includes('bpmn') ? '' : 'fa'
-  } ${icon}"></i>`;
+  const iconMarkup = icon.startsWith('<') ? icon : `<i class="${icon}"></i>`;
 
   const colors = scope && scope.colors;
 
   const colorMarkup = colors ? `style="background: ${colors.primary}; color: ${colors.auxiliary}"` : '';
 
-  const logEntry = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(`
-    <p class="entry ${ type } ${
+  const logEntry = (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.domify)(`
+    <p class="bts-entry ${ type } ${
       scope && this._scopeFilter.isShown(scope) ? '' : 'inactive'
     }" ${
       scope ? `data-scope-id="${scope.id}"` : ''
     }>
-      <span class="date">${ dateString }</span>
-      <span class="icon">${iconMarkup}</span>
-      <span class="text">${text}</span>
+      <span class="bts-date">${ dateString }</span>
+      <span class="bts-icon">${iconMarkup}</span>
+      <span class="bts-text">${text}</span>
       ${
         scope
-          ? `<span class="scope" data-scope-id="${scope.id}" ${colorMarkup}>${scope.id}</span>`
+          ? `<span class="bts-scope" data-scope-id="${scope.id}" ${colorMarkup}>${scope.id}</span>`
           : ''
       }
     </p>
   `);
 
-  min_dom__WEBPACK_IMPORTED_MODULE_2__.delegate.bind(logEntry, '.scope[data-scope-id]', 'click', event => {
+  min_dom__WEBPACK_IMPORTED_MODULE_3__.delegate.bind(logEntry, '.bts-scope[data-scope-id]', 'click', event => {
     this._scopeFilter.toggle(scope);
   });
 
@@ -15625,7 +15978,7 @@ Log.prototype.clear = function() {
     this._content.removeChild(this._content.firstChild);
   }
 
-  this._placeholder = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)('<p class="entry placeholder">No Entries</p>');
+  this._placeholder = (0,min_dom__WEBPACK_IMPORTED_MODULE_3__.domify)('<p class="bts-entry placeholder">No Entries</p>');
 
   this._content.appendChild(this._placeholder);
 };
@@ -15684,13 +16037,19 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (/* binding */ Notifications)
 /* harmony export */ });
-/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
-/* harmony import */ var _util_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
+/* harmony import */ var _util_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var _icons__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../icons */ "../bpmn-js-token-simulation/lib/icons/index.js");
+
+
+
 
 
 
 
 const NOTIFICATION_TIME_TO_LIVE = 2000; // ms
+
+const INFO_ICON = (0,_icons__WEBPACK_IMPORTED_MODULE_0__.InfoIcon)();
 
 
 function Notifications(eventBus, canvas, scopeFilter) {
@@ -15701,15 +16060,15 @@ function Notifications(eventBus, canvas, scopeFilter) {
   this._init();
 
   eventBus.on([
-    _util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_MODE_EVENT,
-    _util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.RESET_SIMULATION_EVENT
+    _util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_MODE_EVENT,
+    _util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.RESET_SIMULATION_EVENT
   ], event => {
     this.clear();
   });
 }
 
 Notifications.prototype._init = function() {
-  this.container = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)('<div class="notifications"></div>');
+  this.container = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)('<div class="bts-notifications"></div>');
 
   this._canvas.getContainer().appendChild(this.container);
 };
@@ -15719,7 +16078,7 @@ Notifications.prototype.showNotification = function(options) {
   const {
     text,
     type = 'info',
-    icon = 'fa-info',
+    icon = INFO_ICON,
     scope,
     ttl = NOTIFICATION_TIME_TO_LIVE
   } = options;
@@ -15728,19 +16087,19 @@ Notifications.prototype.showNotification = function(options) {
     return;
   }
 
-  const iconMarkup = `<i class="${icon} ${
-    icon.includes('bpmn') ? '' : 'fa'
-  } ${icon}"></i>`;
+  const iconMarkup = icon.startsWith('<')
+    ? icon
+    : `<i class="${ icon }"></i>`;
 
   const colors = scope && scope.colors;
 
   const colorMarkup = colors ? `style="color: ${colors.auxiliary}; background: ${colors.primary}"` : '';
 
-  const notification = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(`
-    <div class="notification ${type}">
-      <span class="icon">${iconMarkup}</span>
-      <span class="text">${text}</span>
-      ${ scope ? `<span class="scope" ${colorMarkup}>${scope.id}</span>` : '' }
+  const notification = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(`
+    <div class="bts-notification ${type}">
+      <span class="bts-icon">${iconMarkup}</span>
+      <span class="bts-text">${text}</span>
+      ${ scope ? `<span class="bts-scope" ${colorMarkup}>${scope.id}</span>` : '' }
     </div>
   `);
 
@@ -15835,7 +16194,7 @@ function Palette(eventBus, canvas) {
 }
 
 Palette.prototype._init = function() {
-  this.container = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)('<div class="token-simulation-palette hidden"></div>');
+  this.container = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)('<div class="bts-palette hidden"></div>');
 
   this._canvas.getContainer().appendChild(this.container);
 };
@@ -15895,14 +16254,18 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (/* binding */ PauseSimulation)
 /* harmony export */ });
-/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
-/* harmony import */ var _util_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
+/* harmony import */ var _util_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var _icons__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../icons */ "../bpmn-js-token-simulation/lib/icons/index.js");
 
 
 
 
-const PLAY_MARKUP = '<i class="fa fa-play"></i>';
-const PAUSE_MARKUP = '<i class="fa fa-pause"></i>';
+
+
+
+const PLAY_MARKUP = (0,_icons__WEBPACK_IMPORTED_MODULE_0__.PlayIcon)();
+const PAUSE_MARKUP = (0,_icons__WEBPACK_IMPORTED_MODULE_0__.PauseIcon)();
 
 const HIGH_PRIORITY = 1500;
 
@@ -15923,32 +16286,32 @@ function PauseSimulation(
   this._init();
 
   // unpause on simulation start
-  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SCOPE_CREATE_EVENT, HIGH_PRIORITY, event => {
+  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.SCOPE_CREATE_EVENT, HIGH_PRIORITY, event => {
     this.activate();
     this.unpause();
   });
 
   eventBus.on([
-    _util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.RESET_SIMULATION_EVENT,
-    _util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_MODE_EVENT
+    _util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.RESET_SIMULATION_EVENT,
+    _util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_MODE_EVENT
   ], () => {
     this.deactivate();
     this.pause();
   });
 
-  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TRACE_EVENT, HIGH_PRIORITY, event => {
+  eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TRACE_EVENT, HIGH_PRIORITY, event => {
     this.unpause();
   });
 }
 
 PauseSimulation.prototype._init = function() {
-  this.paletteEntry = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(
-    '<div class="entry disabled" title="Play/Pause Simulation">' +
-      PLAY_MARKUP +
-    '</div>'
-  );
+  this.paletteEntry = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(`
+    <div class="bts-entry disabled" title="Play/Pause Simulation">
+      ${ PLAY_MARKUP }
+    </div>
+  `);
 
-  min_dom__WEBPACK_IMPORTED_MODULE_1__.event.bind(this.paletteEntry, 'click', this.toggle.bind(this));
+  min_dom__WEBPACK_IMPORTED_MODULE_2__.event.bind(this.paletteEntry, 'click', this.toggle.bind(this));
 
   this._tokenSimulationPalette.addEntry(this.paletteEntry, 1);
 };
@@ -15966,12 +16329,12 @@ PauseSimulation.prototype.pause = function() {
     return;
   }
 
-  (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.classes)(this.paletteEntry).remove('active');
-  (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.classes)(this.canvasParent).add('paused');
+  (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(this.paletteEntry).remove('active');
+  (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(this.canvasParent).add('paused');
 
   this.paletteEntry.innerHTML = PLAY_MARKUP;
 
-  this._eventBus.fire(_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.PAUSE_SIMULATION_EVENT);
+  this._eventBus.fire(_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.PAUSE_SIMULATION_EVENT);
 
   this._notifications.showNotification({
     text: 'Pause Simulation'
@@ -15986,12 +16349,12 @@ PauseSimulation.prototype.unpause = function() {
     return;
   }
 
-  (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.classes)(this.paletteEntry).add('active');
-  (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.classes)(this.canvasParent).remove('paused');
+  (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(this.paletteEntry).add('active');
+  (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(this.canvasParent).remove('paused');
 
   this.paletteEntry.innerHTML = PAUSE_MARKUP;
 
-  this._eventBus.fire(_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.PLAY_SIMULATION_EVENT);
+  this._eventBus.fire(_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.PLAY_SIMULATION_EVENT);
 
   this._notifications.showNotification({
     text: 'Play Simulation'
@@ -16003,14 +16366,14 @@ PauseSimulation.prototype.unpause = function() {
 PauseSimulation.prototype.activate = function() {
   this.isActive = true;
 
-  (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.classes)(this.paletteEntry).remove('disabled');
+  (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(this.paletteEntry).remove('disabled');
 };
 
 PauseSimulation.prototype.deactivate = function() {
   this.isActive = false;
 
-  (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.classes)(this.paletteEntry).remove('active');
-  (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.classes)(this.paletteEntry).add('disabled');
+  (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(this.paletteEntry).remove('active');
+  (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(this.paletteEntry).add('disabled');
 };
 
 PauseSimulation.$inject = [
@@ -16069,12 +16432,12 @@ const VERY_HIGH_PRIORITY = 50000;
 
 
 function PreserveElementColors(
-    eventBus, elementRegistry, graphicsFactory) {
+    eventBus, elementRegistry, elementColors) {
 
   this._elementRegistry = elementRegistry;
-  this._graphicsFactory = graphicsFactory;
+  this._elementColors = elementColors;
 
-  this._elementColors = {};
+  this._colorCache = {};
 
   eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_MODE_EVENT, VERY_HIGH_PRIORITY, event => {
     const active = event.active;
@@ -16089,44 +16452,32 @@ function PreserveElementColors(
 
 PreserveElementColors.prototype.preserveColors = function() {
   this._elementRegistry.forEach(element => {
-    this._elementColors[element.id] = {
-      stroke: element.businessObject.di.get('stroke'),
-      fill: element.businessObject.di.get('fill')
-    };
+    this._colorCache[element.id] = this._elementColors.get(element);
 
-    this.setColor(element, '#000', '#fff');
+    this._elementColors.set(element, {
+      stroke: '#000',
+      fill: '#fff'
+    });
   });
 };
 
 PreserveElementColors.prototype.resetColors = function() {
-  const elementColors = this._elementColors;
-
   this._elementRegistry.forEach(element => {
-    if (elementColors[element.id]) {
-      this.setColor(element, elementColors[element.id].stroke, elementColors[element.id].fill);
+
+    const cachedColors = this._colorCache[element.id];
+
+    if (cachedColors) {
+      this._elementColors.set(element, cachedColors);
     }
   });
 
-  this._elementColors = {};
-};
-
-PreserveElementColors.prototype.setColor = function(element, stroke, fill) {
-  const businessObject = element.businessObject;
-
-  businessObject.di.set('stroke', stroke);
-  businessObject.di.set('fill', fill);
-
-  const gfx = this._elementRegistry.getGraphics(element);
-
-  const type = element.waypoints ? 'connection' : 'shape';
-
-  this._graphicsFactory.update(type, element, gfx);
+  this._colorCache = {};
 };
 
 PreserveElementColors.$inject = [
   'eventBus',
   'elementRegistry',
-  'graphicsFactory'
+  'elementColors'
 ];
 
 /***/ }),
@@ -16142,14 +16493,17 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
-/* harmony import */ var _PreserveElementColors__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./PreserveElementColors */ "../bpmn-js-token-simulation/lib/features/preserve-element-colors/PreserveElementColors.js");
+/* harmony import */ var _PreserveElementColors__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./PreserveElementColors */ "../bpmn-js-token-simulation/lib/features/preserve-element-colors/PreserveElementColors.js");
+/* harmony import */ var _element_colors__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../element-colors */ "../bpmn-js-token-simulation/lib/features/element-colors/index.js");
+
 
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  __depends__: [ _element_colors__WEBPACK_IMPORTED_MODULE_0__.default ],
   __init__: [
     'preserveElementColors'
   ],
-  preserveElementColors: [ 'type', _PreserveElementColors__WEBPACK_IMPORTED_MODULE_0__.default ]
+  preserveElementColors: [ 'type', _PreserveElementColors__WEBPACK_IMPORTED_MODULE_1__.default ]
 });
 
 /***/ }),
@@ -16167,6 +16521,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
 /* harmony import */ var _util_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var _icons__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../icons */ "../bpmn-js-token-simulation/lib/icons/index.js");
+
+
 
 
 
@@ -16193,9 +16550,11 @@ function ResetSimulation(eventBus, tokenSimulationPalette, notifications) {
 }
 
 ResetSimulation.prototype._init = function() {
-  this._paletteEntry = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(
-    '<div class="entry disabled" title="Reset Simulation"><i class="fa fa-refresh"></i></div>'
-  );
+  this._paletteEntry = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(`
+    <div class="bts-entry disabled" title="Reset Simulation">
+      ${ (0,_icons__WEBPACK_IMPORTED_MODULE_2__.ResetIcon)() }
+    </div>
+  `);
 
   min_dom__WEBPACK_IMPORTED_MODULE_1__.event.bind(this._paletteEntry, 'click', () => {
     this.resetSimulation();
@@ -16392,6 +16751,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
 /* harmony import */ var _util_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var _icons__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../icons */ "../bpmn-js-token-simulation/lib/icons/index.js");
 
 
 
@@ -16401,6 +16761,9 @@ const SPEEDS = [
   [ 'Normal', 1 ],
   [ 'Fast', 2 ]
 ];
+
+
+
 
 function SetAnimationSpeed(canvas, animation, eventBus) {
   this._canvas = canvas;
@@ -16436,18 +16799,18 @@ SetAnimationSpeed.prototype.getToggleSpeed = function(element) {
 
 SetAnimationSpeed.prototype._init = function(animationSpeed) {
   this._container = (0,min_dom__WEBPACK_IMPORTED_MODULE_0__.domify)(`
-    <div class="set-animation-speed hidden">
-      <i title="Set Animation Speed" class="fa fa-tachometer" aria-hidden="true"></i>
-      <div class="animation-speed-buttons">
+    <div class="bts-set-animation-speed hidden">
+      ${ (0,_icons__WEBPACK_IMPORTED_MODULE_2__.TachometerIcon)() }
+      <div class="bts-animation-speed-buttons">
         ${
           SPEEDS.map(([ label, speed ], idx) => `
-            <div title="${ label }" data-speed="${ speed }" class="animation-speed-button ${speed === animationSpeed ? 'active' : ''}">
+            <button title="Set animation speed = ${ label }" data-speed="${ speed }" class="bts-animation-speed-button ${speed === animationSpeed ? 'active' : ''}">
               ${
                 Array.from({ length: idx + 1 }).map(
-                  () => '<i class="fa fa-angle-right" aria-hidden="true"></i>'
+                  () => (0,_icons__WEBPACK_IMPORTED_MODULE_2__.AngleRightIcon)()
                 ).join('')
               }
-            </div>
+            </button>
           `).join('')
         }
       </div>
@@ -16524,24 +16887,22 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-const STYLE = getComputedStyle(document.documentElement);
-
-const FILL_COLOR = STYLE.getPropertyValue('--token-simulation-silver-base-97');
-const STROKE_COLOR = STYLE.getPropertyValue('--token-simulation-green-base-44');
+const FILL_COLOR = '--token-simulation-silver-base-97';
+const STROKE_COLOR = '--token-simulation-green-base-44';
 
 
 function ShowScopes(
     eventBus,
     canvas,
-    graphicsFactory,
-    elementRegistry,
-    scopeFilter) {
+    scopeFilter,
+    elementColors,
+    simulationStyles) {
 
   this._eventBus = eventBus;
   this._canvas = canvas;
-  this._graphicsFactory = graphicsFactory;
-  this._elementRegistry = elementRegistry;
   this._scopeFilter = scopeFilter;
+  this._elementColors = elementColors;
+  this._simulationStyles = simulationStyles;
 
   this._highlight = null;
 
@@ -16589,7 +16950,7 @@ function ShowScopes(
 }
 
 ShowScopes.prototype._init = function() {
-  this._container = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)('<div class="token-simulation-scopes hidden"></div>');
+  this._container = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)('<div class="bts-scopes hidden"></div>');
 
   this._canvas.getContainer().appendChild(this._container);
 };
@@ -16615,7 +16976,7 @@ ShowScopes.prototype.addScope = function(scope) {
   const colorMarkup = colors ? `style="color: ${colors.auxiliary}; background: ${colors.primary}"` : '';
 
   const html = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(`
-    <div data-scope-id="${scope.id}" class="scope"
+    <div data-scope-id="${scope.id}" class="bts-scope"
          title="View Process Instance ${scope.id}" ${colorMarkup}>
       ${scope.getTokens()}
     </div>
@@ -16674,11 +17035,10 @@ ShowScopes.prototype.highlightScope = function(element) {
 
   this._highlight = {
     element,
-    stroke: element.businessObject.di.get('stroke'),
-    fill: element.businessObject.di.get('fill')
+    colors: this._elementColors.get(element)
   };
 
-  this.setColor(element, STROKE_COLOR, FILL_COLOR);
+  this._elementColors.set(element, this._getHighlightColors());
 
   if (!element.parent) {
     (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.classes)(this._canvas.getContainer()).add('highlight');
@@ -16693,11 +17053,10 @@ ShowScopes.prototype.unhighlightScope = function() {
 
   const {
     element,
-    stroke,
-    fill
+    colors
   } = this._highlight;
 
-  this.setColor(element, stroke, fill);
+  this._elementColors.set(element, colors);
 
   if (!element.parent) {
     (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.classes)(this._canvas.getContainer()).remove('highlight');
@@ -16706,23 +17065,19 @@ ShowScopes.prototype.unhighlightScope = function() {
   this._highlight = null;
 };
 
-ShowScopes.prototype.setColor = function(element, stroke, fill) {
-  var businessObject = element.businessObject;
-
-  businessObject.di.set('stroke', stroke);
-  businessObject.di.set('fill', fill);
-
-  var gfx = this._elementRegistry.getGraphics(element);
-
-  this._graphicsFactory.update('connection', element, gfx);
+ShowScopes.prototype._getHighlightColors = function() {
+  return {
+    fill: this._simulationStyles.get(FILL_COLOR),
+    stroke: this._simulationStyles.get(STROKE_COLOR)
+  };
 };
 
 ShowScopes.$inject = [
   'eventBus',
   'canvas',
-  'graphicsFactory',
-  'elementRegistry',
-  'scopeFilter'
+  'scopeFilter',
+  'elementColors',
+  'simulationStyles'
 ];
 
 /***/ }),
@@ -16738,20 +17093,23 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
-/* harmony import */ var _ShowScopes__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./ShowScopes */ "../bpmn-js-token-simulation/lib/features/show-scopes/ShowScopes.js");
+/* harmony import */ var _ShowScopes__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./ShowScopes */ "../bpmn-js-token-simulation/lib/features/show-scopes/ShowScopes.js");
 /* harmony import */ var _scope_filter__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../scope-filter */ "../bpmn-js-token-simulation/lib/features/scope-filter/index.js");
+/* harmony import */ var _simulation_styles__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../simulation-styles */ "../bpmn-js-token-simulation/lib/features/simulation-styles/index.js");
+
 
 
 
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
   __depends__: [
-    _scope_filter__WEBPACK_IMPORTED_MODULE_0__.default
+    _scope_filter__WEBPACK_IMPORTED_MODULE_0__.default,
+    _simulation_styles__WEBPACK_IMPORTED_MODULE_1__.default
   ],
   __init__: [
     'showScopes'
   ],
-  showScopes: [ 'type', _ShowScopes__WEBPACK_IMPORTED_MODULE_1__.default ]
+  showScopes: [ 'type', _ShowScopes__WEBPACK_IMPORTED_MODULE_2__.default ]
 });
 
 /***/ }),
@@ -16768,6 +17126,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "default": () => (/* binding */ SimulationState)
 /* harmony export */ });
 /* harmony import */ var _util_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var _icons__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../icons */ "../bpmn-js-token-simulation/lib/icons/index.js");
+
+
 
 
 
@@ -16787,7 +17148,7 @@ function SimulationState(
     } = scope;
 
     const {
-      element,
+      initiator,
       reason
     } = destroyContext;
 
@@ -16804,9 +17165,9 @@ function SimulationState(
       return;
     }
 
-    elementNotifications.addElementNotification(element, {
+    elementNotifications.addElementNotification(initiator.element, {
       type: 'success',
-      icon: 'fa-check-circle',
+      icon: (0,_icons__WEBPACK_IMPORTED_MODULE_1__.CheckCircleIcon)(),
       text: 'Finished',
       scope
     });
@@ -16853,6 +17214,85 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ }),
 
+/***/ "../bpmn-js-token-simulation/lib/features/simulation-styles/SimulationStyles.js":
+/*!**************************************************************************************!*\
+  !*** ../bpmn-js-token-simulation/lib/features/simulation-styles/SimulationStyles.js ***!
+  \**************************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ SimulationStyles)
+/* harmony export */ });
+function SimulationStyles() {
+  this._cache = {};
+}
+
+SimulationStyles.$inject = [];
+
+
+SimulationStyles.prototype.get = function(prop) {
+
+  const cachedValue = this._cache[prop];
+
+  if (cachedValue) {
+    return cachedValue;
+  }
+
+  if (!this._computedStyle) {
+    this._computedStyle = this._getComputedStyle();
+  }
+
+  return this._cache[prop] = this._computedStyle.getPropertyValue(prop).trim();
+};
+
+SimulationStyles.prototype._getComputedStyle = function() {
+
+  const get = typeof getComputedStyle === 'function'
+    ? getComputedStyle
+    : getComputedStyleMock;
+
+  const element = typeof document !== 'undefined'
+    ? document.documentElement
+    : {};
+
+  return get(element);
+};
+
+
+// helpers //////////////////
+
+function getComputedStyleMock() {
+  return {
+    getPropertyValue() {
+      return '';
+    }
+  };
+}
+
+/***/ }),
+
+/***/ "../bpmn-js-token-simulation/lib/features/simulation-styles/index.js":
+/*!***************************************************************************!*\
+  !*** ../bpmn-js-token-simulation/lib/features/simulation-styles/index.js ***!
+  \***************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _SimulationStyles__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./SimulationStyles */ "../bpmn-js-token-simulation/lib/features/simulation-styles/SimulationStyles.js");
+
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  simulationStyles: [ 'type', _SimulationStyles__WEBPACK_IMPORTED_MODULE_0__.default ]
+});
+
+/***/ }),
+
 /***/ "../bpmn-js-token-simulation/lib/features/toggle-automatic/ToggleAutomatic.js":
 /*!************************************************************************************!*\
   !*** ../bpmn-js-token-simulation/lib/features/toggle-automatic/ToggleAutomatic.js ***!
@@ -16865,7 +17305,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "default": () => (/* binding */ ToggleAutomatic)
 /* harmony export */ });
 /* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
-/* harmony import */ var _util_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var _util_EventHelper__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var _icons__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../icons */ "../bpmn-js-token-simulation/lib/icons/index.js");
+
+
 
 
 
@@ -16895,7 +17338,7 @@ function ToggleAutomatic(eventBus, canvas) {
 ToggleAutomatic.prototype._init = function() {
   this.container = (0,min_dom__WEBPACK_IMPORTED_MODULE_0__.domify)(`
     <div class="toggle-automatic hidden">
-      Automatic <span class="toggle"><i class="fa fa-magic"></i>&nbsp;<i class="fa fa-toggle-on"></i></span>
+      Automatic&nbsp;<span class="toggle">${ (0,_icons__WEBPACK_IMPORTED_MODULE_1__.MagicIcon)() }&nbsp;${ (0,_icons__WEBPACK_IMPORTED_MODULE_1__.ToggleOnIcon)() }</span>
     </div>
   `);
 
@@ -16907,16 +17350,16 @@ ToggleAutomatic.prototype._init = function() {
 ToggleAutomatic.prototype.toggleAutomatic = function() {
   if (!this.disabled) {
     if (this.automaticMode) {
-      this.container.innerHTML = 'Automatic <span class="toggle"><i class="fa fa-magic"></i>&nbsp;<i class="fa fa-toggle-off"></i></span>';
+      this.container.innerHTML = `Automatic&nbsp;<span class="toggle">${ (0,_icons__WEBPACK_IMPORTED_MODULE_1__.MagicIcon)() }&nbsp;${ (0,_icons__WEBPACK_IMPORTED_MODULE_1__.ToggleOffIcon)() }</span>`;
 
-      this._eventBus.fire(_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_AUTOMATIC_MODE_EVENT, {
+      this._eventBus.fire(_util_EventHelper__WEBPACK_IMPORTED_MODULE_2__.TOGGLE_AUTOMATIC_MODE_EVENT, {
         automaticMode: false
       });
 
     } else {
-      this.container.innerHTML = 'Automatic <span class="toggle"><i class="fa fa-magic"></i>&nbsp;<i class="fa fa-toggle-on"></i></span>';
+      this.container.innerHTML = `Automatic&nbsp;<span class="toggle">${ (0,_icons__WEBPACK_IMPORTED_MODULE_1__.MagicIcon)() }&nbsp;${ (0,_icons__WEBPACK_IMPORTED_MODULE_1__.ToggleOnIcon)() }</span>`;
 
-      this._eventBus.fire(_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_AUTOMATIC_MODE_EVENT, {
+      this._eventBus.fire(_util_EventHelper__WEBPACK_IMPORTED_MODULE_2__.TOGGLE_AUTOMATIC_MODE_EVENT, {
         automaticMode: true
       });
     }
@@ -16974,7 +17417,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "default": () => (/* binding */ ToggleMode)
 /* harmony export */ });
 /* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! min-dom */ "../bpmn-js-token-simulation/node_modules/min-dom/dist/index.esm.js");
-/* harmony import */ var _util_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var _util_EventHelper__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../util/EventHelper */ "../bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var _icons__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../icons */ "../bpmn-js-token-simulation/lib/icons/index.js");
+
+
 
 
 
@@ -17013,8 +17459,8 @@ function ToggleMode(
 
 ToggleMode.prototype._init = function() {
   this._container = (0,min_dom__WEBPACK_IMPORTED_MODULE_0__.domify)(`
-    <div class="toggle-mode">
-      Token Simulation <span class="toggle"><i class="fa fa-toggle-off"></i></span>
+    <div class="bts-toggle-mode">
+      Token Simulation <span class="bts-toggle">${ (0,_icons__WEBPACK_IMPORTED_MODULE_1__.ToggleOffIcon)() }</span>
     </div>
   `);
 
@@ -17030,14 +17476,14 @@ ToggleMode.prototype.toggleMode = function(active = !this._active) {
   }
 
   if (active) {
-    this._container.innerHTML = 'Token Simulation <span class="toggle"><i class="fa fa-toggle-on"></i></span>';
+    this._container.innerHTML = `Token Simulation <span class="bts-toggle">${ (0,_icons__WEBPACK_IMPORTED_MODULE_1__.ToggleOnIcon)() }</span>`;
 
     (0,min_dom__WEBPACK_IMPORTED_MODULE_0__.classes)(this._canvasParent).add('simulation');
     (0,min_dom__WEBPACK_IMPORTED_MODULE_0__.classes)(this._palette).add('hidden');
 
     this._toggleAutomatic.disableToggle(false);
   } else {
-    this._container.innerHTML = 'Token Simulation <span class="toggle"><i class="fa fa-toggle-off"></i></span>';
+    this._container.innerHTML = `Token Simulation <span class="bts-toggle">${ (0,_icons__WEBPACK_IMPORTED_MODULE_1__.ToggleOffIcon)() }</span>`;
 
     (0,min_dom__WEBPACK_IMPORTED_MODULE_0__.classes)(this._canvasParent).remove('simulation');
     (0,min_dom__WEBPACK_IMPORTED_MODULE_0__.classes)(this._palette).remove('hidden');
@@ -17051,7 +17497,7 @@ ToggleMode.prototype.toggleMode = function(active = !this._active) {
     this._toggleAutomatic.disableToggle(true);
   }
 
-  this._eventBus.fire(_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_MODE_EVENT, {
+  this._eventBus.fire(_util_EventHelper__WEBPACK_IMPORTED_MODULE_2__.TOGGLE_MODE_EVENT, {
     active
   });
 
@@ -17117,19 +17563,19 @@ const OFFSET_LEFT = -15;
 
 const LOW_PRIORITY = 500;
 
-const STYLE = getComputedStyle(document.documentElement);
-
-const DEFAULT_PRIMARY_COLOR = STYLE.getPropertyValue('--token-simulation-green-base-44');
-const DEFAULT_AUXILIARY_COLOR = STYLE.getPropertyValue('--token-simulation-white');
+const DEFAULT_PRIMARY_COLOR = '--token-simulation-green-base-44';
+const DEFAULT_AUXILIARY_COLOR = '--token-simulation-white';
 
 
 function TokenCount(
     eventBus, overlays,
-    simulator, scopeFilter) {
+    simulator, scopeFilter,
+    simulationStyles) {
 
   this._overlays = overlays;
   this._scopeFilter = scopeFilter;
   this._simulator = simulator;
+  this._simulationStyles = simulationStyles;
 
   this.overlayIds = {};
 
@@ -17145,7 +17591,7 @@ function TokenCount(
 
   eventBus.on(_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SCOPE_FILTER_CHANGED_EVENT, event => {
 
-    const allElements = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.queryAll)('.token-count[data-scope-id]', overlays._overlayRoot);
+    const allElements = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.queryAll)('.bts-token-count[data-scope-id]', overlays._overlayRoot);
 
     for (const element of allElements) {
       const scopeId = element.dataset.scopeId;
@@ -17176,24 +17622,12 @@ TokenCount.prototype.addTokenCount = function(element, scopes) {
     return;
   }
 
-  const defaultColors = {
-    primary: DEFAULT_PRIMARY_COLOR,
-    auxiliary: DEFAULT_AUXILIARY_COLOR
-  };
-
   const tokenMarkup = scopes.map(scope => {
-    const colors = scope.colors || defaultColors;
-
-    return `
-      <div data-scope-id="${scope.id}" class="token-count waiting ${this._scopeFilter.isShown(scope) ? '' : 'inactive' }"
-           style="color: ${colors.auxiliary}; background: ${ colors.primary }">
-        ${scope.getTokensByElement(element)}
-      </div>
-    `;
+    return this._getTokenHTML(element, scope);
   }).join('');
 
   const html = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(`
-    <div class="token-count-parent">
+    <div class="bts-token-count-parent">
       ${tokenMarkup}
     </div>
   `);
@@ -17227,11 +17661,31 @@ TokenCount.prototype.removeTokenCount = function(element) {
   delete this.overlayIds[element.id];
 };
 
+TokenCount.prototype._getTokenHTML = function(element, scope) {
+
+  const colors = scope.colors || this._getDefaultColors();
+
+  return `
+    <div data-scope-id="${scope.id}" class="bts-token-count waiting ${this._scopeFilter.isShown(scope) ? '' : 'inactive' }"
+         style="color: ${colors.auxiliary}; background: ${ colors.primary }">
+      ${scope.getTokensByElement(element)}
+    </div>
+  `;
+};
+
+TokenCount.prototype._getDefaultColors = function() {
+  return {
+    primary: this._simulationStyles.get(DEFAULT_PRIMARY_COLOR),
+    auxiliary: this._simuationStyles.get(DEFAULT_AUXILIARY_COLOR)
+  };
+};
+
 TokenCount.$inject = [
   'eventBus',
   'overlays',
   'simulator',
-  'scopeFilter'
+  'scopeFilter',
+  'simulationStyles'
 ];
 
 /***/ }),
@@ -17247,21 +17701,114 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
-/* harmony import */ var _TokenCount__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./TokenCount */ "../bpmn-js-token-simulation/lib/features/token-count/TokenCount.js");
+/* harmony import */ var _TokenCount__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./TokenCount */ "../bpmn-js-token-simulation/lib/features/token-count/TokenCount.js");
 /* harmony import */ var _scope_filter__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../scope-filter */ "../bpmn-js-token-simulation/lib/features/scope-filter/index.js");
+/* harmony import */ var _simulation_styles__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../simulation-styles */ "../bpmn-js-token-simulation/lib/features/simulation-styles/index.js");
+
 
 
 
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
   __depends__: [
-    _scope_filter__WEBPACK_IMPORTED_MODULE_0__.default
+    _scope_filter__WEBPACK_IMPORTED_MODULE_0__.default,
+    _simulation_styles__WEBPACK_IMPORTED_MODULE_1__.default
   ],
   __init__: [
     'tokenCount'
   ],
-  tokenCount: [ 'type', _TokenCount__WEBPACK_IMPORTED_MODULE_1__.default ]
+  tokenCount: [ 'type', _TokenCount__WEBPACK_IMPORTED_MODULE_2__.default ]
 });
+
+/***/ }),
+
+/***/ "../bpmn-js-token-simulation/lib/icons/index.js":
+/*!******************************************************!*\
+  !*** ../bpmn-js-token-simulation/lib/icons/index.js ***!
+  \******************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "AngleRightIcon": () => (/* binding */ AngleRightIcon),
+/* harmony export */   "ChartBarIcon": () => (/* binding */ ChartBarIcon),
+/* harmony export */   "CheckCircleIcon": () => (/* binding */ CheckCircleIcon),
+/* harmony export */   "ExclamationTriangleIcon": () => (/* binding */ ExclamationTriangleIcon),
+/* harmony export */   "ForkIcon": () => (/* binding */ ForkIcon),
+/* harmony export */   "InfoIcon": () => (/* binding */ InfoIcon),
+/* harmony export */   "LogIcon": () => (/* binding */ LogIcon),
+/* harmony export */   "MagicIcon": () => (/* binding */ MagicIcon),
+/* harmony export */   "PauseIcon": () => (/* binding */ PauseIcon),
+/* harmony export */   "PlayIcon": () => (/* binding */ PlayIcon),
+/* harmony export */   "RemovePauseIcon": () => (/* binding */ RemovePauseIcon),
+/* harmony export */   "ResetIcon": () => (/* binding */ ResetIcon),
+/* harmony export */   "TachometerIcon": () => (/* binding */ TachometerIcon),
+/* harmony export */   "TimesCircleIcon": () => (/* binding */ TimesCircleIcon),
+/* harmony export */   "TimesIcon": () => (/* binding */ TimesIcon),
+/* harmony export */   "ToggleOffIcon": () => (/* binding */ ToggleOffIcon),
+/* harmony export */   "ToggleOnIcon": () => (/* binding */ ToggleOnIcon)
+/* harmony export */ });
+var LogSVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 448 512\"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path fill=\"currentColor\" d=\"M12.83 352h262.34A12.82 12.82 0 0 0 288 339.17v-38.34A12.82 12.82 0 0 0 275.17 288H12.83A12.82 12.82 0 0 0 0 300.83v38.34A12.82 12.82 0 0 0 12.83 352zm0-256h262.34A12.82 12.82 0 0 0 288 83.17V44.83A12.82 12.82 0 0 0 275.17 32H12.83A12.82 12.82 0 0 0 0 44.83v38.34A12.82 12.82 0 0 0 12.83 96zM432 160H16a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h416a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zm0 256H16a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h416a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16z\"/></svg>";
+
+var AngleRightSVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 256 512\"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path fill=\"currentColor\" d=\"M224.3 273l-136 136c-9.4 9.4-24.6 9.4-33.9 0l-22.6-22.6c-9.4-9.4-9.4-24.6 0-33.9l96.4-96.4-96.4-96.4c-9.4-9.4-9.4-24.6 0-33.9L54.3 103c9.4-9.4 24.6-9.4 33.9 0l136 136c9.5 9.4 9.5 24.6.1 34z\"/></svg>";
+
+var CheckCircleSVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path fill=\"currentColor\" d=\"M504 256c0 136.967-111.033 248-248 248S8 392.967 8 256 119.033 8 256 8s248 111.033 248 248zM227.314 387.314l184-184c6.248-6.248 6.248-16.379 0-22.627l-22.627-22.627c-6.248-6.249-16.379-6.249-22.628 0L216 308.118l-70.059-70.059c-6.248-6.248-16.379-6.248-22.628 0l-22.627 22.627c-6.248 6.248-6.248 16.379 0 22.627l104 104c6.249 6.249 16.379 6.249 22.628.001z\"/></svg>";
+
+var ForkSVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 384 512\"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path fill=\"currentColor\" d=\"M384 144c0-44.2-35.8-80-80-80s-80 35.8-80 80c0 36.4 24.3 67.1 57.5 76.8-.6 16.1-4.2 28.5-11 36.9-15.4 19.2-49.3 22.4-85.2 25.7-28.2 2.6-57.4 5.4-81.3 16.9v-144c32.5-10.2 56-40.5 56-76.3 0-44.2-35.8-80-80-80S0 35.8 0 80c0 35.8 23.5 66.1 56 76.3v199.3C23.5 365.9 0 396.2 0 432c0 44.2 35.8 80 80 80s80-35.8 80-80c0-34-21.2-63.1-51.2-74.6 3.1-5.2 7.8-9.8 14.9-13.4 16.2-8.2 40.4-10.4 66.1-12.8 42.2-3.9 90-8.4 118.2-43.4 14-17.4 21.1-39.8 21.6-67.9 31.6-10.8 54.4-40.7 54.4-75.9zM80 64c8.8 0 16 7.2 16 16s-7.2 16-16 16-16-7.2-16-16 7.2-16 16-16zm0 384c-8.8 0-16-7.2-16-16s7.2-16 16-16 16 7.2 16 16-7.2 16-16 16zm224-320c8.8 0 16 7.2 16 16s-7.2 16-16 16-16-7.2-16-16 7.2-16 16-16z\"/></svg>";
+
+var ExclamationTriangleSVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 576 512\"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path fill=\"currentColor\" d=\"M569.517 440.013C587.975 472.007 564.806 512 527.94 512H48.054c-36.937 0-59.999-40.055-41.577-71.987L246.423 23.985c18.467-32.009 64.72-31.951 83.154 0l239.94 416.028zM288 354c-25.405 0-46 20.595-46 46s20.595 46 46 46 46-20.595 46-46-20.595-46-46-46zm-43.673-165.346l7.418 136c.347 6.364 5.609 11.346 11.982 11.346h48.546c6.373 0 11.635-4.982 11.982-11.346l7.418-136c.375-6.874-5.098-12.654-11.982-12.654h-63.383c-6.884 0-12.356 5.78-11.981 12.654z\"/></svg>";
+
+var InfoSVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 192 512\"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path fill=\"currentColor\" d=\"M20 424.229h20V279.771H20c-11.046 0-20-8.954-20-20V212c0-11.046 8.954-20 20-20h112c11.046 0 20 8.954 20 20v212.229h20c11.046 0 20 8.954 20 20V492c0 11.046-8.954 20-20 20H20c-11.046 0-20-8.954-20-20v-47.771c0-11.046 8.954-20 20-20zM96 0C56.235 0 24 32.235 24 72s32.235 72 72 72 72-32.235 72-72S135.764 0 96 0z\"/></svg>";
+
+var PauseSVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 448 512\"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path fill=\"currentColor\" d=\"M144 479H48c-26.5 0-48-21.5-48-48V79c0-26.5 21.5-48 48-48h96c26.5 0 48 21.5 48 48v352c0 26.5-21.5 48-48 48zm304-48V79c0-26.5-21.5-48-48-48h-96c-26.5 0-48 21.5-48 48v352c0 26.5 21.5 48 48 48h96c26.5 0 48-21.5 48-48z\"/></svg>";
+
+var RemovePauseSVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 580.5 448\">\n  <path fill=\"currentColor\" d=\"M112 0C85 0 64 22 64 48v196l192-89V48c0-26-22-48-48-48zm256 0c-27 0-48 22-48 48v77l190-89c-5-21-24-36-46-36Zm144 105-192 89v70l192-89zM256 224 64 314v70l192-90zm256 21-192 89v66c0 27 21 48 48 48h96c26 0 48-21 48-48zM256 364 89 442c7 4 14 6 23 6h96c26 0 48-21 48-48z\"/>\n  <rect fill=\"currentColor\" width=\"63.3\" height=\"618.2\" x=\"311.5\" y=\"-469.4\" transform=\"rotate(65)\" rx=\"10\"/>\n</svg>\n";
+
+var PlaySVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 448 512\"><!-- Adapted from Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path fill=\"currentColor\" d=\"M424.4 214.7L72.4 6.6C43.8-10.3 0 6.1 0 47.9V464c0 37.5 40.7 60.1 72.4 41.3l352-208c31.4-18.5 31.5-64.1 0-82.6z\"/></svg>";
+
+var ResetSVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path fill=\"currentColor\" d=\"M440.65 12.57l4 82.77A247.16 247.16 0 0 0 255.83 8C134.73 8 33.91 94.92 12.29 209.82A12 12 0 0 0 24.09 224h49.05a12 12 0 0 0 11.67-9.26 175.91 175.91 0 0 1 317-56.94l-101.46-4.86a12 12 0 0 0-12.57 12v47.41a12 12 0 0 0 12 12H500a12 12 0 0 0 12-12V12a12 12 0 0 0-12-12h-47.37a12 12 0 0 0-11.98 12.57zM255.83 432a175.61 175.61 0 0 1-146-77.8l101.8 4.87a12 12 0 0 0 12.57-12v-47.4a12 12 0 0 0-12-12H12a12 12 0 0 0-12 12V500a12 12 0 0 0 12 12h47.35a12 12 0 0 0 12-12.6l-4.15-82.57A247.17 247.17 0 0 0 255.83 504c121.11 0 221.93-86.92 243.55-201.82a12 12 0 0 0-11.8-14.18h-49.05a12 12 0 0 0-11.67 9.26A175.86 175.86 0 0 1 255.83 432z\"/></svg>";
+
+var TachometerSVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 576 512\"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path fill=\"currentColor\" d=\"M288 32C128.94 32 0 160.94 0 320c0 52.8 14.25 102.26 39.06 144.8 5.61 9.62 16.3 15.2 27.44 15.2h443c11.14 0 21.83-5.58 27.44-15.2C561.75 422.26 576 372.8 576 320c0-159.06-128.94-288-288-288zm0 64c14.71 0 26.58 10.13 30.32 23.65-1.11 2.26-2.64 4.23-3.45 6.67l-9.22 27.67c-5.13 3.49-10.97 6.01-17.64 6.01-17.67 0-32-14.33-32-32S270.33 96 288 96zM96 384c-17.67 0-32-14.33-32-32s14.33-32 32-32 32 14.33 32 32-14.33 32-32 32zm48-160c-17.67 0-32-14.33-32-32s14.33-32 32-32 32 14.33 32 32-14.33 32-32 32zm246.77-72.41l-61.33 184C343.13 347.33 352 364.54 352 384c0 11.72-3.38 22.55-8.88 32H232.88c-5.5-9.45-8.88-20.28-8.88-32 0-33.94 26.5-61.43 59.9-63.59l61.34-184.01c4.17-12.56 17.73-19.45 30.36-15.17 12.57 4.19 19.35 17.79 15.17 30.36zm14.66 57.2l15.52-46.55c3.47-1.29 7.13-2.23 11.05-2.23 17.67 0 32 14.33 32 32s-14.33 32-32 32c-11.38-.01-20.89-6.28-26.57-15.22zM480 384c-17.67 0-32-14.33-32-32s14.33-32 32-32 32 14.33 32 32-14.33 32-32 32z\"/></svg>";
+
+var TimesCircleSVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path fill=\"currentColor\" d=\"M256 8C119 8 8 119 8 256s111 248 248 248 248-111 248-248S393 8 256 8zm121.6 313.1c4.7 4.7 4.7 12.3 0 17L338 377.6c-4.7 4.7-12.3 4.7-17 0L256 312l-65.1 65.6c-4.7 4.7-12.3 4.7-17 0L134.4 338c-4.7-4.7-4.7-12.3 0-17l65.6-65-65.6-65.1c-4.7-4.7-4.7-12.3 0-17l39.6-39.6c4.7-4.7 12.3-4.7 17 0l65 65.7 65.1-65.6c4.7-4.7 12.3-4.7 17 0l39.6 39.6c4.7 4.7 4.7 12.3 0 17L312 256l65.6 65.1z\"/></svg>";
+
+var TimesSVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 352 512\"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path fill=\"currentColor\" d=\"M242.72 256l100.07-100.07c12.28-12.28 12.28-32.19 0-44.48l-22.24-22.24c-12.28-12.28-32.19-12.28-44.48 0L176 189.28 75.93 89.21c-12.28-12.28-32.19-12.28-44.48 0L9.21 111.45c-12.28 12.28-12.28 32.19 0 44.48L109.28 256 9.21 356.07c-12.28 12.28-12.28 32.19 0 44.48l22.24 22.24c12.28 12.28 32.2 12.28 44.48 0L176 322.72l100.07 100.07c12.28 12.28 32.2 12.28 44.48 0l22.24-22.24c12.28-12.28 12.28-32.19 0-44.48L242.72 256z\"/></svg>";
+
+var ToggleOffSVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 576 512\"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path fill=\"currentColor\" d=\"M384 64H192C85.961 64 0 149.961 0 256s85.961 192 192 192h192c106.039 0 192-85.961 192-192S490.039 64 384 64zM64 256c0-70.741 57.249-128 128-128 70.741 0 128 57.249 128 128 0 70.741-57.249 128-128 128-70.741 0-128-57.249-128-128zm320 128h-48.905c65.217-72.858 65.236-183.12 0-256H384c70.741 0 128 57.249 128 128 0 70.74-57.249 128-128 128z\"/></svg>";
+
+var ToggleOnSVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 576 512\"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path fill=\"currentColor\" d=\"M384 64H192C86 64 0 150 0 256s86 192 192 192h192c106 0 192-86 192-192S490 64 384 64zm0 320c-70.8 0-128-57.3-128-128 0-70.8 57.3-128 128-128 70.8 0 128 57.3 128 128 0 70.8-57.3 128-128 128z\"/></svg>";
+
+var MagicSVG = "<svg aria-hidden=\"true\" focusable=\"false\" data-prefix=\"fas\" data-icon=\"magic\" class=\"svg-inline--fa fa-magic fa-w-16\" role=\"img\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\"><path fill=\"currentColor\" d=\"M224 96l16-32 32-16-32-16-16-32-16 32-32 16 32 16 16 32zM80 160l26.66-53.33L160 80l-53.34-26.67L80 0 53.34 53.33 0 80l53.34 26.67L80 160zm352 128l-26.66 53.33L352 368l53.34 26.67L432 448l26.66-53.33L512 368l-53.34-26.67L432 288zm70.62-193.77L417.77 9.38C411.53 3.12 403.34 0 395.15 0c-8.19 0-16.38 3.12-22.63 9.38L9.38 372.52c-12.5 12.5-12.5 32.76 0 45.25l84.85 84.85c6.25 6.25 14.44 9.37 22.62 9.37 8.19 0 16.38-3.12 22.63-9.37l363.14-363.15c12.5-12.48 12.5-32.75 0-45.24zM359.45 203.46l-50.91-50.91 86.6-86.6 50.91 50.91-86.6 86.6z\"></path></svg>";
+
+var ChartBarSVG = "<svg aria-hidden=\"true\" focusable=\"false\" data-prefix=\"fas\" data-icon=\"chart-bar\" class=\"svg-inline--fa fa-chart-bar fa-w-16\" role=\"img\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\"><path fill=\"currentColor\" d=\"M332.8 320h38.4c6.4 0 12.8-6.4 12.8-12.8V172.8c0-6.4-6.4-12.8-12.8-12.8h-38.4c-6.4 0-12.8 6.4-12.8 12.8v134.4c0 6.4 6.4 12.8 12.8 12.8zm96 0h38.4c6.4 0 12.8-6.4 12.8-12.8V76.8c0-6.4-6.4-12.8-12.8-12.8h-38.4c-6.4 0-12.8 6.4-12.8 12.8v230.4c0 6.4 6.4 12.8 12.8 12.8zm-288 0h38.4c6.4 0 12.8-6.4 12.8-12.8v-70.4c0-6.4-6.4-12.8-12.8-12.8h-38.4c-6.4 0-12.8 6.4-12.8 12.8v70.4c0 6.4 6.4 12.8 12.8 12.8zm96 0h38.4c6.4 0 12.8-6.4 12.8-12.8V108.8c0-6.4-6.4-12.8-12.8-12.8h-38.4c-6.4 0-12.8 6.4-12.8 12.8v198.4c0 6.4 6.4 12.8 12.8 12.8zM496 384H64V80c0-8.84-7.16-16-16-16H16C7.16 64 0 71.16 0 80v336c0 17.67 14.33 32 32 32h464c8.84 0 16-7.16 16-16v-32c0-8.84-7.16-16-16-16z\"></path></svg>";
+
+function createIcon(svg) {
+  return function Icon(className = '') {
+    return `<span class="bts-icon ${ className }">${svg}</span>`;
+  };
+}
+
+const LogIcon = createIcon(LogSVG);
+const AngleRightIcon = createIcon(AngleRightSVG);
+const CheckCircleIcon = createIcon(CheckCircleSVG);
+const RemovePauseIcon = createIcon(RemovePauseSVG);
+const ForkIcon = createIcon(ForkSVG);
+const ExclamationTriangleIcon = createIcon(ExclamationTriangleSVG);
+const InfoIcon = createIcon(InfoSVG);
+const PauseIcon = createIcon(PauseSVG);
+const PlayIcon = createIcon(PlaySVG);
+const ResetIcon = createIcon(ResetSVG);
+const TachometerIcon = createIcon(TachometerSVG);
+const TimesCircleIcon = createIcon(TimesCircleSVG);
+const TimesIcon = createIcon(TimesSVG);
+const ToggleOffIcon = createIcon(ToggleOffSVG);
+const ToggleOnIcon = createIcon(ToggleOnSVG);
+const MagicIcon = createIcon(MagicSVG);
+const ChartBarIcon = createIcon(ChartBarSVG);
+
+
+
 
 /***/ }),
 
@@ -17377,10 +17924,10 @@ function Simulator(injector, eventBus) {
     const {
       element,
       parentScope,
-      initiator
+      initiator = null
     } = context;
 
-    const scope = context.scope || createScope(element, parentScope, initiator && initiator.element);
+    const scope = context.scope || createScope(element, parentScope, initiator);
 
     queue(scope, function() {
 
@@ -17398,6 +17945,8 @@ function Simulator(injector, eventBus) {
         scopeChanged(scope.parent);
       }
     });
+
+    return scope;
   }
 
   function enter(context) {
@@ -17419,6 +17968,8 @@ function Simulator(injector, eventBus) {
 
       scopeChanged(parentScope);
     });
+
+    return scope;
   }
 
   function exit(context) {
@@ -17426,10 +17977,7 @@ function Simulator(injector, eventBus) {
     const {
       element,
       scope,
-      initiator = {
-        element,
-        scope
-      }
+      initiator = scope
     } = context;
 
     queue(scope, function() {
@@ -17439,7 +17987,7 @@ function Simulator(injector, eventBus) {
       getBehavior(element).exit(context);
 
       destroyScope(scope, {
-        ...initiator,
+        initiator,
         reason: 'complete'
       });
 
@@ -17482,6 +18030,10 @@ function Simulator(injector, eventBus) {
 
     elementChanged(element);
 
+    if (parentScope) {
+      elementChanged(parentScope.element);
+    }
+
     return scope;
   }
 
@@ -17516,8 +18068,7 @@ function Simulator(injector, eventBus) {
   }
 
   const noneContext = Object.freeze({
-    element: null,
-    scope: null,
+    initiator: null,
     reason: 'cancel'
   });
 
@@ -17527,7 +18078,7 @@ function Simulator(injector, eventBus) {
       return;
     }
 
-    [ 'element', 'scope', 'reason' ].forEach(property => {
+    [ 'initiator', 'reason' ].forEach(property => {
       if (!(property in context)) {
         throw new Error(`no <context.${property}> provided`);
       }
@@ -17553,6 +18104,10 @@ function Simulator(injector, eventBus) {
 
     elementChanged(scope.element);
 
+    if (scope.parent) {
+      elementChanged(scope.parent.element);
+    }
+
     emit('destroyScope', {
       scope
     });
@@ -17568,6 +18123,12 @@ function Simulator(injector, eventBus) {
 
   function elementChanged(element) {
     changedElements.add(element);
+
+    // tick, unless jobs are queued
+    // (and tick is going to happen naturally)
+    if (!jobs.length) {
+      emit('tick');
+    }
   }
 
   function scopeChanged(scope) {
@@ -17743,9 +18304,7 @@ ActivityBehavior.prototype.enter = function(context) {
     element
   } = context;
 
-  const {
-    wait
-  } = this._simulator.getConfig(element);
+  const wait = this._waitsAtElement(element);
 
   const messageContexts = this._getMessageContexts(element);
 
@@ -17770,27 +18329,40 @@ ActivityBehavior.prototype.exit = function(context) {
     scope
   } = context;
 
+  const parentScope = scope.parent;
+
   if (scope.interrupted) {
-    return;
+    return this._scopeBehavior.tryExit(parentScope, scope);
   }
 
   // TODO(nikku): if a outgoing flow is conditional,
   //              task has exclusive gateway semantics,
   //              else, task has parallel gateway semantics
 
-  const parentScope = scope.parent;
+  let sequenceFlowTaken = false;
 
+  for (const outgoingFlow of element.outgoing) {
 
-  for (const outgoing of element.outgoing) {
-
-    if ((0,_ModelUtil__WEBPACK_IMPORTED_MODULE_0__.isSequenceFlow)(outgoing)) {
-
-      this._simulator.enter({
-        element: outgoing,
-        scope: parentScope
-      });
+    if (!(0,_ModelUtil__WEBPACK_IMPORTED_MODULE_0__.isSequenceFlow)(outgoingFlow)) {
+      continue;
     }
+
+    this._simulator.enter({
+      element: outgoingFlow,
+      scope: parentScope
+    });
+
+    sequenceFlowTaken = true;
   }
+
+  // element has token sink semantics
+  if (!sequenceFlowTaken) {
+    this._scopeBehavior.tryExit(parentScope, scope);
+  }
+};
+
+ActivityBehavior.prototype._waitsAtElement = function(element) {
+  return this._simulator.getConfig(element).wait;
 };
 
 ActivityBehavior.prototype._getMessageContexts = function(element, after=null) {
@@ -17899,22 +18471,11 @@ BoundaryEventBehavior.prototype.signal = function(context) {
       throw new Error('cancel scope not found');
     }
 
-    const initiator = {
-      element,
-      scope
-    };
+    this._scopeBehavior.interrupt(cancelScope, scope);
 
-    this._scopeBehavior.interrupt(cancelScope, initiator);
-
-    if (this._scopeBehavior.isFinished(cancelScope)) {
-
-      // attempt child scope exit
-      // may fail if interrupting activities are still running
-      this._scopeBehavior.exit({
-        scope: cancelScope,
-        initiator
-      });
-    }
+    // attempt child scope exit
+    // may fail if interrupting activities are still running
+    this._scopeBehavior.tryExit(cancelScope, scope);
   }
 
   this._simulator.exit(context);
@@ -17989,23 +18550,15 @@ EndEventBehavior.prototype.exit = function(context) {
     scope
   } = context;
 
-  const initiator = {
-    element,
-    scope
-  };
-
   const {
     parent: parentScope
   } = scope;
 
-  const terminate = (0,_ModelUtil__WEBPACK_IMPORTED_MODULE_0__.isTerminate)(element);
-
-  if (terminate || this._scopeBehavior.isFinished(parentScope, scope)) {
-    this._scopeBehavior.exit({
-      scope: parentScope,
-      initiator
-    });
+  if ((0,_ModelUtil__WEBPACK_IMPORTED_MODULE_0__.isTerminate)(element)) {
+    this._scopeBehavior.terminate(parentScope, scope);
   }
+
+  this._scopeBehavior.tryExit(parentScope, scope);
 };
 
 EndEventBehavior.$inject = [
@@ -18056,6 +18609,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "default": () => (/* binding */ EventBehaviors)
 /* harmony export */ });
 /* harmony import */ var _util_ElementHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../util/ElementHelper */ "../bpmn-js-token-simulation/lib/util/ElementHelper.js");
+/* harmony import */ var _util_ElementHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../util/ElementHelper */ "../bpmn-js-token-simulation/node_modules/bpmn-js/lib/util/ModelUtil.js");
 
 
 
@@ -18143,7 +18697,7 @@ EventBehaviors.prototype.get = function(element) {
           if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_0__.is)(triggerParent, 'bpmn:SubProcess')) {
 
             // trigger event sub-processes only
-            if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_0__.getBusinessObject)(triggerParent).triggeredByEvent) {
+            if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_1__.getBusinessObject)(triggerParent).triggeredByEvent) {
               const parentScopes = this._simulator.findScopes({
                 element: triggerParent.parent
               });
@@ -18252,6 +18806,69 @@ EventBehaviors.prototype.get = function(element) {
         element: triggerElement,
         parentScope
       });
+    },
+
+    'bpmn:ErrorEventDefinition': (context) => {
+
+      const {
+        element,
+        scope
+      } = context;
+
+      // HINT: errors are handled in current scope only (do not bubble)
+
+      const eventDefinition = (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_0__.getEventDefinition)(element, 'bpmn:ErrorEventDefinition');
+      const error = eventDefinition.get('errorRef');
+
+      let parentScope = scope.parent;
+
+      let triggerElement;
+
+      do {
+
+        // find catching event sub-process or boundary event
+        triggerElement = parentScope.element.children.find(e => {
+          return (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_0__.is)(e, 'bpmn:SubProcess') && e.children.find(e => {
+            return (
+              (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_0__.is)(e, 'bpmn:StartEvent') &&
+              (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_0__.isTypedEvent)(e, 'bpmn:ErrorEventDefinition') &&
+              (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_0__.getEventDefinition)(e, 'bpmn:ErrorEventDefinition').get('errorRef') === error
+            );
+          });
+        }) || parentScope.element.attachers.find(e => {
+          return (
+            (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_0__.is)(e, 'bpmn:CatchEvent') &&
+            (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_0__.isTypedEvent)(e, 'bpmn:ErrorEventDefinition') &&
+            (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_0__.getEventDefinition)(e, 'bpmn:ErrorEventDefinition').get('errorRef') === error
+          );
+        });
+
+        if (triggerElement) {
+          break;
+        }
+
+        if (!isEventBasedSubProcess(parentScope.element)) {
+          break;
+        }
+      } while ((parentScope = parentScope.parent));
+
+      if (!triggerElement) {
+        return;
+      }
+
+      if ((0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_0__.is)(triggerElement, 'bpmn:BoundaryEvent')) {
+        parentScope = parentScope.parent;
+      }
+
+      // TODO(nikku): trigger same behavior if error boundary is signaled
+
+      // TODO(nikku): error has interrupt semantics;
+      // clear all active scopes
+
+      this._simulator.signal({
+        element: triggerElement,
+        parentScope
+      });
     }
   };
 
@@ -18266,6 +18883,13 @@ EventBehaviors.$inject = [
   'simulator',
   'elementRegistry'
 ];
+
+
+// helpers ////////////////
+
+function isEventBasedSubProcess(element) {
+  return (0,_util_ElementHelper__WEBPACK_IMPORTED_MODULE_0__.is)(element, 'bpmn:SubProcess') && element.businessObject.triggeredByEvent;
+}
 
 /***/ }),
 
@@ -18485,19 +19109,13 @@ MessageFlowBehavior.prototype.exit = function(context) {
     this._simulator.signal({
       element: target,
       scope: waitingScope,
-      initiator: {
-        element,
-        scope
-      }
+      initiator: scope
     });
   } else if ((0,_ModelUtil__WEBPACK_IMPORTED_MODULE_0__.is)(target, 'bpmn:StartEvent')) {
     this._simulator.signal({
       startEvent: target,
       element: target.parent,
-      initiator: {
-        element,
-        scope
-      }
+      initiator: scope
     });
   } else {
 
@@ -18619,8 +19237,7 @@ ParallelGatewayBehavior.prototype.enter = function(context) {
 
       if (childScope !== scope) {
         this._simulator.destroyScope(childScope, {
-          scope,
-          element,
+          initiator: scope,
           reason: 'join'
         });
       }
@@ -18745,8 +19362,8 @@ ScopeBehavior.prototype.destroyChildren = function(scope, initiator) {
     }
 
     this._simulator.destroyScope(childScope, {
+      initiator,
       reason: 'cancel',
-      ...initiator
     });
   }
 };
@@ -18784,6 +19401,25 @@ ScopeBehavior.prototype.enter = function(context) {
   }
 };
 
+ScopeBehavior.prototype.terminate = function(scope, initiator) {
+
+  // mark as interrupted
+  scope.interrupted = true;
+
+  // kill all but initiating child scopes
+  for (const childScope of scope.children) {
+
+    if (childScope.destroyed || childScope === initiator) {
+      continue;
+    }
+
+    this._simulator.destroyScope(childScope, {
+      initiator,
+      reason: 'cancel'
+    });
+  }
+};
+
 ScopeBehavior.prototype.interrupt = function(scope, initiator) {
 
   // mark as interrupted
@@ -18797,10 +19433,29 @@ ScopeBehavior.prototype.interrupt = function(scope, initiator) {
     }
 
     this._simulator.destroyScope(childScope, {
+      initiator,
       reason: 'cancel',
-      ...initiator
     });
   }
+};
+
+ScopeBehavior.prototype.tryExit = function(scope, initiator) {
+  if (!scope) {
+    throw new Error('missing <scope>');
+  }
+
+  if (!initiator) {
+    initiator = scope;
+  }
+
+  if (!this.isFinished(scope, initiator)) {
+    return;
+  }
+
+  this.exit({
+    scope,
+    initiator
+  });
 };
 
 ScopeBehavior.prototype.exit = function(context) {
@@ -18958,11 +19613,6 @@ function SubProcessBehavior(
 }
 
 SubProcessBehavior.prototype.signal = function(context) {
-  this.enter(context);
-};
-
-SubProcessBehavior.prototype.enter = function(context) {
-
   const {
     element,
     startEvent = findSubProcessStart(element),
@@ -18979,25 +19629,27 @@ SubProcessBehavior.prototype.enter = function(context) {
   });
 };
 
-SubProcessBehavior.prototype.exit = function(context) {
+SubProcessBehavior.prototype.enter = function(context) {
 
   const {
-    scope,
-    initiator
+    element
   } = context;
 
-  this._activityBehavior.exit(context);
+  var wait = this._waitsAtElement(element);
 
-  const {
-    parent: scopeParent
-  } = scope;
-
-  if (this._scopeBehavior.isFinished(scopeParent, scope)) {
-    this._scopeBehavior.exit({
-      scope: scopeParent,
-      initiator
-    });
+  if (wait) {
+    return;
   }
+
+  this.signal(context);
+};
+
+SubProcessBehavior.prototype.exit = function(context) {
+  this._activityBehavior.exit(context);
+};
+
+SubProcessBehavior.prototype._waitsAtElement = function(element) {
+  return this._simulator.getConfig(element).wait;
 };
 
 SubProcessBehavior.$inject = [
@@ -19149,7 +19801,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "is": () => (/* binding */ is),
 /* harmony export */   "getEventDefinition": () => (/* binding */ getEventDefinition),
 /* harmony export */   "isTypedEvent": () => (/* binding */ isTypedEvent),
-/* harmony export */   "getBusinessObject": () => (/* binding */ getBusinessObject)
+/* harmony export */   "getBusinessObject": () => (/* reexport safe */ bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_0__.getBusinessObject)
 /* harmony export */ });
 /* harmony import */ var min_dash__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! min-dash */ "../bpmn-js-token-simulation/node_modules/min-dash/dist/index.esm.js");
 /* harmony import */ var bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! bpmn-js/lib/util/ModelUtil */ "../bpmn-js-token-simulation/node_modules/bpmn-js/lib/util/ModelUtil.js");
@@ -19172,20 +19824,18 @@ function is(element, types) {
 }
 
 function getEventDefinition(event, eventDefinitionType) {
-  return (0,min_dash__WEBPACK_IMPORTED_MODULE_1__.find)(getBusinessObject(event).eventDefinitions, function(definition) {
-    return definition.$type === eventDefinitionType;
+  return (0,min_dash__WEBPACK_IMPORTED_MODULE_1__.find)((0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_0__.getBusinessObject)(event).eventDefinitions, definition => {
+    return is(definition, eventDefinitionType);
   });
 }
 
 function isTypedEvent(event, eventDefinitionType) {
-  return (0,min_dash__WEBPACK_IMPORTED_MODULE_1__.some)(getBusinessObject(event).eventDefinitions, function(definition) {
-    return definition.$type === eventDefinitionType;
+  return (0,min_dash__WEBPACK_IMPORTED_MODULE_1__.some)((0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_0__.getBusinessObject)(event).eventDefinitions, definition => {
+    return is(definition, eventDefinitionType);
   });
 }
 
-function getBusinessObject(element) {
-  return (element && element.businessObject) || element;
-}
+
 
 /***/ }),
 

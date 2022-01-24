@@ -1,6 +1,6 @@
 {
   "name": "bpmn-js-token-simulation-plugin",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "bpmn-js Token Simulation plug-in for the Camunda Modeler",
   "main": "index.js",
   "scripts": {
@@ -22,11 +22,11 @@
   "author": "Philipp Fromme",
   "license": "MIT",
   "devDependencies": {
-    "bpmn-js": "^8.6.0",
+    "bpmn-js": "^8.9.0",
     "bpmn-js-properties-panel": "^0.43.1",
-    "bpmn-js-token-simulation": "^0.22.0",
+    "bpmn-js-token-simulation": "^0.24.0",
     "camunda-bpmn-moddle": "^5.1.2",
-    "camunda-modeler-plugin-helpers": "^2.1.0",
+    "camunda-modeler-plugin-helpers": "^3.1.0",
     "chai": "^4.3.4",
     "copy-webpack-plugin": "^8.1.1",
     "karma": "^6.3.4",

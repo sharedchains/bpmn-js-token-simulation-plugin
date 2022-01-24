@@ -88,12 +88,11 @@ export default class Data {
       } = event;
 
       const {
-        element,
-        initiator
+        element
       } = scope;
 
       scope.data = undefined;
-      if (initiator && initiator.type === 'bpmn:MessageFlow') {
+      if (element && element.type === 'bpmn:MessageFlow') {
         /*
         * The token is moving from a participant to another,
         * we need to pass the scope from the "source" process to the "target" process

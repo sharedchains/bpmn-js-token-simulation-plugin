@@ -3,6 +3,8 @@ import {
   domify,
   event as domEvent
 } from 'min-dom';
+
+import { ChartBarIcon } from 'bpmn-js-token-simulation/lib/icons';
 import { CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, TOGGLE_DATA_SIMULATION_EVENT } from '../events/EventHelper';
 
 /**
@@ -25,8 +27,8 @@ export default function ToggleData(eventBus, tokenSimulationPalette) {
 
 ToggleData.prototype._init = function() {
   this.paletteEntry = domify(`
-    <div class="entry active" title="Toggle data">
-      <i class="fa fa-bar-chart"></i>
+    <div class="bts-entry active" title="Toggle data">
+      ${ ChartBarIcon() }
     </div>
   `);
 

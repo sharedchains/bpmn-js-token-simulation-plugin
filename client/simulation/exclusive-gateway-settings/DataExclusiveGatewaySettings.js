@@ -6,19 +6,22 @@ import {
 } from 'bpmn-js-token-simulation/lib/util/EventHelper';
 import { CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, TOGGLE_DATA_SIMULATION_EVENT } from '../../events/EventHelper';
 
-const STYLE = getComputedStyle(document.documentElement);
-const DEFAULT_COLOR = STYLE.getPropertyValue('--token-simulation-grey-darken-30');
+const DEFAULT_COLOR = '--token-simulation-grey-darken-30';
 
 /**
  * Extends default ExclusiveGatewaySettings on Simulator. This module removes the default elementContextPads if data mode is active.
  * @param eventBus
  * @param elementRegistry
+ * @param elementColors
+ * @param simulationStyles
  * @param exclusiveGatewaySettings
  * @param contextPads
  * @constructor
  */
-export default function DataExclusiveGatewaySettings(eventBus, elementRegistry, exclusiveGatewaySettings, contextPads) {
+export default function DataExclusiveGatewaySettings(eventBus, elementRegistry, elementColors, simulationStyles, exclusiveGatewaySettings, contextPads) {
   this._elementRegistry = elementRegistry;
+  this._elementColors = elementColors;
+  this._simulationStyles = simulationStyles;
   this._exclusiveGatewaySettings = exclusiveGatewaySettings;
   this._contextPads = contextPads;
 
@@ -53,7 +56,12 @@ export default function DataExclusiveGatewaySettings(eventBus, elementRegistry, 
       } else {
         this._exclusiveGatewaySettings.setSequenceFlowsDefault();
         exclusiveGateways.forEach(exclusiveGateway => {
-          contextPads.openElementContextPads(exclusiveGateway);
+          // Show context pad
+          for (const handler of contextPads.getHandlers(exclusiveGateway)) {
+            const handlerHash = `${exclusiveGateway.id}------${handler.hash}`;
+            contextPads._addOverlay(exclusiveGateway, { handlerHash, html: '<div></div>' })
+            contextPads.updateElementContextPads(exclusiveGateway);
+          }
         });
       }
     }
@@ -65,7 +73,8 @@ export default function DataExclusiveGatewaySettings(eventBus, elementRegistry, 
     } = event;
 
     if (this.dataActive && this.active && is(element, 'bpmn:ExclusiveGateway')) {
-      contextPads.closeElementContextPads(element);
+      // Hide context pad
+      closeContextPads(this._contextPads, element);
     }
   });
   eventBus.on(RESET_SIMULATION_EVENT, LOW_PRIORITY, () => {
@@ -82,12 +91,26 @@ DataExclusiveGatewaySettings.prototype.resetSequenceFlows = function(exclusiveGa
   this._exclusiveGatewaySettings.resetSequenceFlows();
 
   exclusiveGateways.forEach(exclusiveGateway => {
-    this._contextPads.closeElementContextPads(exclusiveGateway);
+    // Hide context pad
+    closeContextPads(this._contextPads, exclusiveGateway);
+
+    const stroke = this._simulationStyles.get(DEFAULT_COLOR);
     // set colors
     exclusiveGateway.outgoing.forEach(outgoing => {
-      this._exclusiveGatewaySettings.setColor(outgoing, DEFAULT_COLOR);
+      this._elementColors.set(outgoing, { stroke });
     });
   });
 };
 
-DataExclusiveGatewaySettings.$inject = ['eventBus', 'elementRegistry', 'exclusiveGatewaySettings', 'contextPads'];
+function closeContextPads(contextPads, exclusiveGateway) {
+  for (const handler of contextPads.getHandlers(exclusiveGateway)) {
+    const handlerHash = `${exclusiveGateway.id}------${handler.hash}`;
+    const existingOverlays = contextPads._getOverlays(handlerHash);
+    for (const existingOverlay of existingOverlays) {
+      contextPads._removeOverlay(existingOverlay);
+    }
+  }
+
+}
+
+DataExclusiveGatewaySettings.$inject = ['eventBus', 'elementRegistry', 'elementColors', 'simulationStyles', 'exclusiveGatewaySettings', 'contextPads'];
