@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:data="http://data.sh4.red" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_0wnmtl7" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="4.9.0" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.15.0">
+  <bpmn:process id="Process_10gduin" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:scriptTask id="Script_1" name="B = A + 2" scriptFormat="groovy" camunda:resultVariable="B" data:scriptResultVariableType="INTEGER">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+      <bpmn:script>println A;
+A = A+2;
+return A;</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="Script_2" name="C = B - 7" scriptFormat="groovy" camunda:resultVariable="C" data:scriptResultVariableType="INTEGER">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+      <bpmn:script>B = B - 7;
+return B</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="Script_3" name="D = A + 14" scriptFormat="groovy" camunda:resultVariable="D" data:scriptResultVariableType="INTEGER">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+      <bpmn:script>return A + 14;</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="EndEvent">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Script_1" targetRef="Script_2" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Script_2" targetRef="Script_3" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Script_3" targetRef="EndEvent" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="Script_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_10gduin" >
+      <bpmndi:BPMNEdge id="Flow_0kecvxx_di" bpmnElement="Flow_1" bioc:stroke="#000" bioc:fill="#fff">
+        <di:waypoint x="208" y="117" />
+        <di:waypoint x="260" y="117" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_15e52kk_di" bpmnElement="Flow_4" bioc:stroke="#000" bioc:fill="#fff">
+        <di:waypoint x="700" y="117" />
+        <di:waypoint x="762" y="117" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0dgfof9_di" bpmnElement="Flow_3" bioc:stroke="#000" bioc:fill="#fff">
+        <di:waypoint x="520" y="117" />
+        <di:waypoint x="600" y="117" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1adyyod_di" bpmnElement="Flow_2" bioc:stroke="#000" bioc:fill="#fff">
+        <di:waypoint x="360" y="117" />
+        <di:waypoint x="420" y="117" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_1" bioc:stroke="#000" bioc:fill="#fff">
+        <dc:Bounds x="172" y="99" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_015bckk_di" bpmnElement="Script_1" bioc:stroke="#000" bioc:fill="#fff">
+        <dc:Bounds x="260" y="77" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0gif8oe_di" bpmnElement="Script_2" bioc:stroke="#000" bioc:fill="#fff">
+        <dc:Bounds x="420" y="77" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0bsuzkm_di" bpmnElement="Script_3" bioc:stroke="#000" bioc:fill="#fff">
+        <dc:Bounds x="600" y="77" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_14gp2tg_di" bpmnElement="EndEvent" bioc:stroke="#000" bioc:fill="#fff">
+        <dc:Bounds x="762" y="99" width="36" height="36" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -4,10 +4,14 @@ import {
 
 import TokenSimulationModule from 'bpmn-js-token-simulation';
 import HideModelerElements from './HideModelerElements';
+import TokenPropertiesProvider from './propertiesProvider';
 
 const TokenSimulationPluginModule = {
-  __init__: [ 'hideModelerElements' ],
-  hideModelerElements: [ 'type', HideModelerElements ]
+  __depends__: [
+    TokenPropertiesProvider
+  ],
+  __init__: ['hideModelerElements'],
+  hideModelerElements: ['type', HideModelerElements]
 };
 
 registerBpmnJSPlugin(TokenSimulationModule);
