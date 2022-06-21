@@ -1,6 +1,5 @@
 import { RESET_SIMULATION_EVENT, SCOPE_CREATE_EVENT } from 'bpmn-js-token-simulation/lib/util/EventHelper';
 import { getBusinessObject, is } from 'bpmn-js/lib/util/ModelUtil';
-import { findRootElementsByType } from 'bpmn-js-properties-panel/lib/Utils';
 import { LOW_PRIORITY } from '../events/EventHelper';
 
 export default class Data {
@@ -333,3 +332,22 @@ export default class Data {
 }
 
 Data.$inject = ['eventBus'];
+
+// helper utils
+function getRoot(businessObject) {
+  let parent = businessObject;
+
+  while (parent.$parent) {
+    parent = parent.$parent;
+  }
+
+  return parent;
+}
+function filterElementsByType(objectList, type) {
+  const list = objectList || [];
+  return list.filter(element => is(element, type));
+}
+function findRootElementsByType(businessObject, referencedType) {
+  const root = getRoot(businessObject);
+  return filterElementsByType(root.get('rootElements'), referencedType);
+}

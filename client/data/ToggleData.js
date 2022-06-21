@@ -4,7 +4,8 @@ import {
   event as domEvent
 } from 'min-dom';
 
-import { ChartBarIcon } from 'bpmn-js-token-simulation/lib/icons';
+import { ChartBarIcon } from '../icons';
+
 import { CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, TOGGLE_DATA_SIMULATION_EVENT } from '../events/EventHelper';
 
 /**

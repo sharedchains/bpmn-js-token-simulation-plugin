@@ -1,4 +1,4 @@
-import { filterSequenceFlows } from 'bpmn-js-token-simulation/lib/simulator/behaviors/ModelUtil';
+import { filterSequenceFlows } from 'bpmn-js-token-simulation/lib/simulator/util/ModelUtil';
 import { getBusinessObject } from 'bpmn-js/lib/util/ModelUtil';
 import { expressionPattern, isExpressionPattern } from '../script-runner/ScriptRunner';
 import { CODE_EDITOR_PLUGIN_PRESENT_EVENT, LOW_PRIORITY, TOGGLE_DATA_SIMULATION_EVENT } from '../../events/EventHelper';

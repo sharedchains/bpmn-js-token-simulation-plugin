@@ -16,30 +16,21 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/util/EventHelper */ "./node_modules/bpmn-js-token-simulation/lib/util/EventHelper.js");
 
 
-
-
-
 function HideModelerElements(eventBus, toggleMode) {
   var css = '.properties.hidden { display: none; } .tabs .tab.hidden { display: none; }',
       head = document.head,
       style = document.createElement('style');
-
   style.type = 'text/css';
-
   style.appendChild(document.createTextNode(css));
-
   head.appendChild(style);
-
-  eventBus.on('saveXML.start', 5000, function() {
+  eventBus.on('saveXML.start', 5000, function () {
     // disable simulation before saving
     if (toggleMode.active) {
       toggleMode.toggleMode();
     }
   });
-
-  eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_MODE_EVENT, function(context) {
+  eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_MODE_EVENT, function (context) {
     var active = context.active;
-
     var propertiesPanel = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.query)('.properties');
 
     if (active) {
@@ -49,11 +40,1933 @@ function HideModelerElements(eventBus, toggleMode) {
     }
   });
 }
+HideModelerElements.$inject = ['eventBus', 'toggleMode'];
 
-HideModelerElements.$inject = [
-  'eventBus',
-  'toggleMode'
-];
+/***/ }),
+
+/***/ "./client/data/Data.js":
+/*!*****************************!*\
+  !*** ./client/data/Data.js ***!
+  \*****************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ Data)
+/* harmony export */ });
+/* harmony import */ var bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/util/EventHelper */ "./node_modules/bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! bpmn-js/lib/util/ModelUtil */ "./node_modules/bpmn-js/lib/util/ModelUtil.js");
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../events/EventHelper */ "./client/events/EventHelper.js");
+
+
+
+class Data {
+  /**
+   * Data class, keeps scope data for simulation
+   *
+   * @param eventBus
+   */
+  constructor(eventBus) {
+    /**
+     * @typedef DataObject
+     * @type {Object}
+     * @property {ModdleElement} element bpmn-js Moddle Element
+     * @property {DataMap} data Variable Map Object
+     * @property {SimulationMap|undefined} simulation Variable Map Object
+     * @property {Colors} [colors]
+     */
+
+    /**
+     * @typedef Colors
+     * @type {Object}
+     *
+     * @property {String} primary
+     * @property {String} auxiliary
+     *
+     */
+
+    /**
+     * @typedef DataMap
+     * @typedef SimulationMap
+     *
+     * Keeps a map for the detected variables of the simulation.
+     * Key is the variable name
+     * @type {Map<String, CamundaVariable>}
+     *
+     */
+
+    /**
+     * @typedef CamundaVariable
+     * @type {Object}
+     *
+     * @property {String} name
+     * @property {*} value
+     * @property {String} type
+     */
+
+    /**
+     * @typedef SimulationObject
+     * @type {Object}
+     *
+     * @property {SimulationMap} simulation
+     * @property {Colors} colors map
+     */
+
+    /**
+     * We will keep an array of objects for each participant/process of the model.
+     * @type {Array.<DataObject>}
+     * @private
+     */
+    this._data = [];
+    eventBus.on('import.done', () => {
+      this._data = [];
+    });
+    eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.RESET_SIMULATION_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
+      this._data.forEach(dataObject => {
+        dataObject.simulation = undefined;
+        dataObject.colors = undefined;
+      });
+    });
+    /*
+    * Every time the simulation token enters into an object, a SCOPE_CREATE_EVENT event is fired.
+    * We decorate the scope of the element with the data accumulated:
+    *  + from simulation, if present
+    *  + from its participant/process (which is the owner of every data object)
+    *
+    * */
+
+    eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.SCOPE_CREATE_EVENT, event => {
+      const {
+        scope
+      } = event;
+      const {
+        element
+      } = scope;
+      scope.data = undefined;
+
+      if (element && element.type === 'bpmn:MessageFlow') {
+        /*
+        * The token is moving from a participant to another,
+        * we need to pass the scope from the "source" process to the "target" process
+        * */
+        const {
+          source,
+          target
+        } = element;
+        let sDataObject = this.getDataElementSimulation(this.#getProcessOrParticipantElement(source)) || this.getDataElements(this.#getProcessOrParticipantElement(source)) || [];
+        let processOrParticipantElement = this.#getProcessOrParticipantElement(target);
+        let tDataObject = this.getDataElementSimulation(processOrParticipantElement) || this.getDataElements(processOrParticipantElement) || [];
+        scope.data = this.#destructureMaps(new Map([...sDataObject, ...tDataObject]));
+
+        let oldData = this._data.find(dataObject => dataObject.element.id === processOrParticipantElement.id);
+
+        if (oldData) {
+          oldData.simulation = this.#destructureMaps(scope.data);
+        } else {
+          this.setDataSimulationMap(processOrParticipantElement, this.#destructureMaps(scope.data));
+        }
+      } else {
+        let processOrParticipantElement = this.#getProcessOrParticipantElement(element);
+        let dataObject = this.getDataElementSimulation(processOrParticipantElement) || this.getDataElements(processOrParticipantElement) || [];
+        scope.data = this.#destructureMaps(dataObject);
+
+        let oldData = this._data.find(obj => obj.element.id === processOrParticipantElement.id);
+
+        if (oldData) {
+          oldData.simulation = this.#destructureMaps(scope.data);
+          oldData.colors = scope.colors;
+        } else {
+          this.setDataSimulationMap(processOrParticipantElement, this.#destructureMaps(scope.data));
+        }
+      }
+    });
+  }
+  /**
+   *  Returns a new instance of map, to avoid references from the old structures that could 'false data'
+   *
+   * @param maps
+   * @returns {Map<any, any>}
+   */
+
+
+  #destructureMaps(...maps) {
+    let newMap = new Map();
+    maps.forEach(map => {
+      for (const [key, value] of map.entries()) {
+        newMap.set(key, { ...value
+        });
+      }
+    });
+    return newMap;
+  }
+  /**
+   * Returns the business object of the Process element, or Participant if model is a Collaboration
+   * @param element the starting ModdleElement
+   * @returns {{$parent}|*|ModdleElement}
+   */
+
+
+  #getProcessOrParticipantElement(element) {
+    let bo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.getBusinessObject)(element);
+
+    if (!bo) {
+      return;
+    }
+
+    if ((0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.is)(element, 'bpmn:Process') || (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.is)(element, 'bpmn:Participant')) {
+      return bo;
+    }
+
+    let rootProcess = Data.#getRootProcess(bo);
+    let collaboration = findRootElementsByType(bo, 'bpmn:Collaboration');
+
+    if (collaboration.length > 0) {
+      let participants = collaboration[0].participants.filter(participant => participant.processRef?.id === rootProcess.id);
+      return participants[0];
+    } else {
+      return rootProcess;
+    }
+  }
+  /**
+   * Cycles bpmn model until it finds the parent Process element
+   * @param businessObject
+   * @returns {{$parent}|*}
+   */
+
+
+  static #getRootProcess(businessObject) {
+    let parent = businessObject;
+
+    if (!businessObject) {
+      return;
+    }
+
+    while (parent.$parent && !(0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.is)(parent, 'bpmn:Process')) {
+      parent = parent.$parent;
+    }
+
+    return parent;
+  }
+  /**
+   * Returns the DataObject relative to the rootElementParam
+   * @param rootElement Process or Participant
+   * @returns {DataObject|undefined}
+   */
+
+
+  getDataObject(rootElement) {
+    return this._data.find(obj => obj.element.id === rootElement.id);
+  }
+  /**
+   * Replaces the simulation variables map for the provided element
+   *
+   * @param {ModdleElement} element
+   * @param {SimulationMap} map
+   */
+
+
+  setDataSimulationMap(element, map) {
+    let elem = this.#getProcessOrParticipantElement(element);
+
+    let index = this._data.findIndex(obj => obj.element.id === elem.id);
+
+    if (index !== -1) {
+      this._data[index].simulation = map;
+    } else {
+      this._data.push({
+        element: elem,
+        data: new Map(),
+        simulation: map
+      });
+    }
+  }
+  /**
+   * Creates a new {@link DataObject} for the provided element, pushing it to the private array
+   * @param {ModdleElement} element
+   */
+
+
+  addDataElement(element) {
+    let elem = this.#getProcessOrParticipantElement(element);
+    let map = this.getDataElements(elem);
+
+    if (!map || map.length === 0) {
+      map = new Map();
+
+      this._data.push({
+        element: elem,
+        data: map,
+        simulation: undefined
+      });
+    }
+
+    map.set('', {});
+  }
+  /**
+   * Returns the variable data map for the provided element
+   * @param element
+   * @returns {DataMap|*[]}
+   */
+
+
+  getDataElements(element) {
+    let elem = this.#getProcessOrParticipantElement(element);
+
+    if (elem) {
+      return this.getDataObject(elem)?.data;
+    } else {
+      return [];
+    }
+  }
+  /**
+   * Returns the variable simulation map for the provided element
+   * @param element
+   * @returns {*[]|SimulationMap|undefined}
+   */
+
+
+  getDataElementSimulation(element) {
+    let elem = this.#getProcessOrParticipantElement(element);
+
+    if (elem) {
+      return this.getDataObject(elem)?.simulation;
+    } else {
+      return [];
+    }
+  }
+  /**
+   * Add a new variable to the {@link SimulationMap} for the provided element
+   * @param {ModdleElement} element
+   * @param {CamundaVariable} value
+   */
+
+
+  addDataElementSimulation(element, value) {
+    let elem = this.#getProcessOrParticipantElement(element);
+    let dataObject = this.getDataObject(elem);
+
+    if (!dataObject.simulation) {
+      dataObject.simulation = new Map([...dataObject.data]);
+    }
+
+    dataObject.simulation.set(value['name'], { ...value
+    });
+  }
+  /**
+   * Updates an existing variable in the {@link SimulationMap} for the provided participant
+   * @param {String} idParticipant
+   * @param {CamundaVariable} value
+   */
+
+
+  updateDataElementSimulation(idParticipant, value) {
+    let dataObject = this._data.find(obj => obj.element.id === idParticipant);
+
+    dataObject.simulation.set(value['name'], { ...value
+    });
+  }
+  /**
+   * Updates an existing variable value in the {@link DataMap} for the provided element
+   * @param {ModdleElement} element
+   * @param {CamundaVariable} value
+   * @param {number} index
+   */
+
+
+  updateDataElement(element, value, index) {
+    let elem = this.#getProcessOrParticipantElement(element);
+    let map = this.getDataElements(elem);
+
+    if (!map || map.length === 0) {
+      return;
+    }
+
+    let keyMap = Array.from(map.keys())[index];
+    map.delete(keyMap);
+    map.set(value['name'], { ...value
+    });
+  }
+  /**
+   * Removes an existing variable at the provided index
+   * @param {ModdleElement} element
+   * @param {number} index
+   */
+
+
+  removeDataElement(element, index) {
+    let elem = this.#getProcessOrParticipantElement(element);
+    let map = this.getDataElements(elem);
+
+    if (!map || map.length === 0) {
+      return;
+    }
+
+    let keyMap = Array.from(map.keys())[index];
+    map.delete(keyMap);
+  }
+  /**
+   * Returns an array of objects for each process/participant of the model, containing a {@link SimulationObject}
+   * @returns { Array.<SimulationObject>}
+   */
+
+
+  getDataSimulation() {
+    return this._data.map(data => {
+      let obj = {};
+      const colors = data.colors || {
+        primary: '#999',
+        auxiliary: '#999'
+      };
+      let newMap = data.simulation ? new Map([...data.simulation]) : new Map();
+      obj[data.element.id] = {
+        colors: colors,
+        simulation: newMap
+      };
+      return obj;
+    });
+  }
+
+}
+Data.$inject = ['eventBus']; // helper utils
+
+function getRoot(businessObject) {
+  let parent = businessObject;
+
+  while (parent.$parent) {
+    parent = parent.$parent;
+  }
+
+  return parent;
+}
+
+function filterElementsByType(objectList, type) {
+  const list = objectList || [];
+  return list.filter(element => (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.is)(element, type));
+}
+
+function findRootElementsByType(businessObject, referencedType) {
+  const root = getRoot(businessObject);
+  return filterElementsByType(root.get('rootElements'), referencedType);
+}
+
+/***/ }),
+
+/***/ "./client/data/DataPanel.js":
+/*!**********************************!*\
+  !*** ./client/data/DataPanel.js ***!
+  \**********************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ DataPanel)
+/* harmony export */ });
+/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! min-dom */ "./node_modules/min-dom/dist/index.esm.js");
+/* harmony import */ var bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/util/EventHelper */ "./node_modules/bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../events/EventHelper */ "./client/events/EventHelper.js");
+
+
+
+/**
+ * Draws a panel on simulation mode, if data mode is active
+ *
+ * @param simulator
+ * @param eventBus
+ * @param canvas
+ * @param dataTokenSimulation
+ * @constructor
+ */
+
+function DataPanel(simulator, eventBus, canvas, dataTokenSimulation) {
+  this._eventBus = eventBus;
+  this._canvas = canvas;
+  this._dataTokenSimulation = dataTokenSimulation;
+  this.editing = false;
+  this._active = false;
+  this.waitingElements = [];
+  /**
+   * Event received if Code Editor Plugin is present
+   */
+
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
+    this._active = true;
+  });
+  /**
+   * On Simulation mode toggle active, activate panel if data mode is active
+   */
+
+  this._eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_MODE_EVENT, context => {
+    let active = context.active;
+    let dataPanel = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.query)('.data-panel');
+
+    if (!active) {
+      (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(dataPanel).add('hidden');
+    } else if (this._active) {
+      (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(dataPanel).remove('hidden');
+    }
+  });
+  /**
+   * On data mode toggle, activate data panel [Data mode activation is in {@link ./ToggleData.js|ToggleData module}]
+   */
+
+
+  this._eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_DATA_SIMULATION_EVENT, context => {
+    this._active = context.active;
+    let dataPanel = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.query)('.data-panel');
+
+    if (this._active) {
+      (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(dataPanel).remove('hidden');
+    } else {
+      (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(dataPanel).add('hidden');
+    }
+  });
+
+  this._eventBus.on('import.done', () => this._init());
+  /**
+   * Set data panel in view mode
+   */
+
+
+  this._eventBus.on([_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_NOT_EDITABLE_EVENT, bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.RESET_SIMULATION_EVENT], context => {
+    this.editing = false;
+    this.waitingElements = context && context.element ? this.waitingElements.filter(element => element.id !== context.element.id) : [];
+  });
+  /**
+   * Set data panel in edit mode
+   */
+
+
+  this._eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_EDITABLE_EVENT, context => {
+    this.waitingElements.push(context.element);
+    let dataVariables = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.queryAll)('.variable-value');
+    let dataVariableInputs = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.queryAll)('.variable-value-input');
+
+    if (dataVariables.length > 0 && dataVariableInputs.length > 0) {
+      this.editing = true;
+
+      for (const variable of dataVariables.values()) {
+        if (!(0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(variable).has('hidden')) {
+          (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(variable).add('hidden');
+        }
+      }
+
+      for (const variable of dataVariableInputs.values()) {
+        (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(variable).remove('hidden');
+      }
+    }
+  });
+
+  this._eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.RESET_SIMULATION_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
+    let dataProperties = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.query)('.data-properties');
+    dataProperties.textContent = '';
+  });
+  /**
+   * Builds the data panel on simulation SCOPE_DESTROYED_EVENT
+   */
+
+
+  this._eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.SCOPE_DESTROYED_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
+    if (this._active) {
+      let data = this._dataTokenSimulation.getDataSimulation();
+
+      this.container.textContent = '';
+      data.forEach(simObject => {
+        let section = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(`<div class="section"></div>`);
+
+        for (const [id, simulationData] of Object.entries(simObject)) {
+          let title = `<div class="sectionTitle">
+            <div class="token" style="background-color: ${simulationData.simulation && simulationData.simulation.size ? simulationData.colors.primary : '#999'}"></div>
+            <h4 class="participant">${id}</h4>
+        </div>`;
+
+          if (simulationData.simulation && simulationData.simulation.size) {
+            section.style.borderColor = String(simulationData.colors.primary);
+          }
+
+          let domTitle = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(title);
+          section.appendChild(domTitle);
+
+          if (simulationData.simulation) {
+            for (const [key, variable] of simulationData.simulation.entries()) {
+              let row = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(`<p class="variable">
+                                        <strong>${key}</strong>
+                                        &nbsp;&nbsp;:&nbsp;&nbsp;
+                                        <span class="variable-value ${this.editing ? 'hidden' : ''}">${variable.value}</span>
+                                        <input type="text" class="variable-value-input ${this.editing ? '' : 'hidden'}" value="${variable.value}" />
+                                        </p>`);
+              min_dom__WEBPACK_IMPORTED_MODULE_2__.delegate.bind(row, '.variable-value-input', 'change', event => {
+                let newVariable = Object.assign({}, variable, {
+                  value: event.target.value
+                });
+
+                this._dataTokenSimulation.updateDataElementSimulation(id, newVariable);
+
+                let scopes = simulator.findScopes(scope => {
+                  return scope.parent?.element.id === id && this.waitingElements.some(element => element.id === scope.element.id);
+                });
+                scopes.forEach(scope => {
+                  this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.UPDATED_DATA_EVENT, {
+                    participantId: id,
+                    variable: newVariable,
+                    element: scope.element
+                  });
+                });
+              });
+              section.append(row);
+            }
+          }
+        }
+
+        this.container.appendChild(section);
+      });
+    }
+  });
+}
+
+DataPanel.prototype._init = function () {
+  this.panel = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)('<div class="data-panel hidden"><h5>Data Simulation</h5></div>');
+  this.container = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)('<div class="data-properties"></div>');
+  this.panel.appendChild(this.container);
+
+  this._canvas.getContainer().appendChild(this.panel);
+
+  min_dom__WEBPACK_IMPORTED_MODULE_2__.event.bind(this.panel, 'wheel', event => {
+    event.stopPropagation();
+  });
+  min_dom__WEBPACK_IMPORTED_MODULE_2__.event.bind(this.panel, 'mousedown', event => {
+    event.stopPropagation();
+  });
+};
+
+DataPanel.$inject = ['simulator', 'eventBus', 'canvas', 'dataTokenSimulation'];
+
+/***/ }),
+
+/***/ "./client/data/ToggleData.js":
+/*!***********************************!*\
+  !*** ./client/data/ToggleData.js ***!
+  \***********************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ ToggleData)
+/* harmony export */ });
+/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! min-dom */ "./node_modules/min-dom/dist/index.esm.js");
+/* harmony import */ var _icons__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../icons */ "./client/icons/index.js");
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../events/EventHelper */ "./client/events/EventHelper.js");
+
+
+
+/**
+ * Draws a button for Data Mode, integrated to the existing palette
+ * @param eventBus
+ * @param tokenSimulationPalette
+ * @constructor
+ */
+
+function ToggleData(eventBus, tokenSimulationPalette) {
+  this._eventBus = eventBus;
+  this._tokenSimulationPalette = tokenSimulationPalette;
+  this._active = false;
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.LOW_PRIORITY, () => {
+    this._active = true;
+
+    this._init();
+  });
+}
+
+ToggleData.prototype._init = function () {
+  this.paletteEntry = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.domify)(`
+    <div class="bts-entry active" title="Toggle data">
+      ${(0,_icons__WEBPACK_IMPORTED_MODULE_0__.ChartBarIcon)()}
+    </div>
+  `);
+  min_dom__WEBPACK_IMPORTED_MODULE_2__.event.bind(this.paletteEntry, 'click', () => {
+    (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(this.paletteEntry).toggle('active');
+    this._active = (0,min_dom__WEBPACK_IMPORTED_MODULE_2__.classes)(this.paletteEntry).has('active');
+
+    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_DATA_SIMULATION_EVENT, {
+      active: this._active
+    });
+  });
+
+  this._tokenSimulationPalette.addEntry(this.paletteEntry, 4);
+};
+
+ToggleData.$inject = ['eventBus', 'tokenSimulationPalette'];
+
+/***/ }),
+
+/***/ "./client/data/index.js":
+/*!******************************!*\
+  !*** ./client/data/index.js ***!
+  \******************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _Data__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./Data */ "./client/data/Data.js");
+/* harmony import */ var _DataPanel__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./DataPanel */ "./client/data/DataPanel.js");
+/* harmony import */ var _ToggleData__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./ToggleData */ "./client/data/ToggleData.js");
+/* harmony import */ var bpmn_js_token_simulation_lib_features_palette__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/features/palette */ "./node_modules/bpmn-js-token-simulation/lib/features/palette/index.js");
+
+
+
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  __depends__: [bpmn_js_token_simulation_lib_features_palette__WEBPACK_IMPORTED_MODULE_3__.default],
+  __init__: ['dataTokenSimulation', 'dataPanel', 'toggleData'],
+  dataTokenSimulation: ['type', _Data__WEBPACK_IMPORTED_MODULE_0__.default],
+  dataPanel: ['type', _DataPanel__WEBPACK_IMPORTED_MODULE_1__.default],
+  toggleData: ['type', _ToggleData__WEBPACK_IMPORTED_MODULE_2__.default]
+});
+
+/***/ }),
+
+/***/ "./client/events/EventHelper.js":
+/*!**************************************!*\
+  !*** ./client/events/EventHelper.js ***!
+  \**************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "SET_DATA_EDITABLE_EVENT": () => (/* binding */ SET_DATA_EDITABLE_EVENT),
+/* harmony export */   "SET_DATA_NOT_EDITABLE_EVENT": () => (/* binding */ SET_DATA_NOT_EDITABLE_EVENT),
+/* harmony export */   "UPDATED_DATA_EVENT": () => (/* binding */ UPDATED_DATA_EVENT),
+/* harmony export */   "TOGGLE_DATA_SIMULATION_EVENT": () => (/* binding */ TOGGLE_DATA_SIMULATION_EVENT),
+/* harmony export */   "CODE_EDITOR_PLUGIN_PRESENT_EVENT": () => (/* binding */ CODE_EDITOR_PLUGIN_PRESENT_EVENT),
+/* harmony export */   "RUN_CODE_EVALUATION_EVENT": () => (/* binding */ RUN_CODE_EVALUATION_EVENT),
+/* harmony export */   "GET_DATA_TYPES_EVENT": () => (/* binding */ GET_DATA_TYPES_EVENT),
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__),
+/* harmony export */   "LOWEST_PRIORITY": () => (/* binding */ LOWEST_PRIORITY),
+/* harmony export */   "LOW_PRIORITY": () => (/* binding */ LOW_PRIORITY),
+/* harmony export */   "DEFAULT_PRIORITY": () => (/* binding */ DEFAULT_PRIORITY),
+/* harmony export */   "MID_HIGH_PRIORITY": () => (/* binding */ MID_HIGH_PRIORITY),
+/* harmony export */   "HIGH_PRIORITY": () => (/* binding */ HIGH_PRIORITY)
+/* harmony export */ });
+const SET_DATA_EDITABLE_EVENT = 'tokenSimulation.data.setEditable';
+const SET_DATA_NOT_EDITABLE_EVENT = 'tokenSimulation.data.unsetEditable';
+const UPDATED_DATA_EVENT = 'tokenSimulation.data.update';
+const TOGGLE_DATA_SIMULATION_EVENT = 'tokenSimulation.data.toggle';
+const CODE_EDITOR_PLUGIN_PRESENT_EVENT = 'codeEditor.init';
+const RUN_CODE_EVALUATION_EVENT = 'codeEditor.run';
+const GET_DATA_TYPES_EVENT = 'codeEditor.getTypes';
+const eventTypes = {
+  TOGGLE_DATA_SIMULATION_EVENT,
+  SET_DATA_EDITABLE_EVENT,
+  SET_DATA_NOT_EDITABLE_EVENT,
+  UPDATED_DATA_EVENT,
+  CODE_EDITOR_PLUGIN_PRESENT_EVENT,
+  RUN_CODE_EVALUATION_EVENT,
+  GET_DATA_TYPES_EVENT
+};
+const LOWEST_PRIORITY = 199;
+const LOW_PRIORITY = 499;
+const DEFAULT_PRIORITY = 1000;
+const MID_HIGH_PRIORITY = 6000;
+const HIGH_PRIORITY = 10001;
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (eventTypes);
+
+
+/***/ }),
+
+/***/ "./client/icons/index.js":
+/*!*******************************!*\
+  !*** ./client/icons/index.js ***!
+  \*******************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "ChartBarIcon": () => (/* binding */ ChartBarIcon)
+/* harmony export */ });
+var ChartBarSVG = "<svg aria-hidden=\"true\" focusable=\"false\" data-prefix=\"fas\" data-icon=\"chart-bar\" class=\"svg-inline--fa fa-chart-bar fa-w-16\" role=\"img\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\"><path fill=\"currentColor\" d=\"M332.8 320h38.4c6.4 0 12.8-6.4 12.8-12.8V172.8c0-6.4-6.4-12.8-12.8-12.8h-38.4c-6.4 0-12.8 6.4-12.8 12.8v134.4c0 6.4 6.4 12.8 12.8 12.8zm96 0h38.4c6.4 0 12.8-6.4 12.8-12.8V76.8c0-6.4-6.4-12.8-12.8-12.8h-38.4c-6.4 0-12.8 6.4-12.8 12.8v230.4c0 6.4 6.4 12.8 12.8 12.8zm-288 0h38.4c6.4 0 12.8-6.4 12.8-12.8v-70.4c0-6.4-6.4-12.8-12.8-12.8h-38.4c-6.4 0-12.8 6.4-12.8 12.8v70.4c0 6.4 6.4 12.8 12.8 12.8zm96 0h38.4c6.4 0 12.8-6.4 12.8-12.8V108.8c0-6.4-6.4-12.8-12.8-12.8h-38.4c-6.4 0-12.8 6.4-12.8 12.8v198.4c0 6.4 6.4 12.8 12.8 12.8zM496 384H64V80c0-8.84-7.16-16-16-16H16C7.16 64 0 71.16 0 80v336c0 17.67 14.33 32 32 32h464c8.84 0 16-7.16 16-16v-32c0-8.84-7.16-16-16-16z\"></path></svg>";
+
+function createIcon(svg) {
+  return function Icon(className = '') {
+    return `<span class="bts-icon ${className}">${svg}</span>`;
+  };
+}
+
+const ChartBarIcon = createIcon(ChartBarSVG);
+
+
+/***/ }),
+
+/***/ "./client/propertiesProvider/TokenPropertiesProvider.js":
+/*!**************************************************************!*\
+  !*** ./client/propertiesProvider/TokenPropertiesProvider.js ***!
+  \**************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ TokenPropertiesProvider)
+/* harmony export */ });
+/* harmony import */ var _parts_DataProps__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./parts/DataProps */ "./client/propertiesProvider/parts/DataProps.js");
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../events/EventHelper */ "./client/events/EventHelper.js");
+/* harmony import */ var _bpmn_io_properties_panel__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @bpmn-io/properties-panel */ "./node_modules/camunda-modeler-plugin-helpers/vendor/@bpmn-io/properties-panel/index.js");
+/* harmony import */ var _bpmn_io_properties_panel__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(_bpmn_io_properties_panel__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! bpmn-js/lib/util/ModelUtil */ "./node_modules/bpmn-js/lib/util/ModelUtil.js");
+
+
+
+
+/**
+ * Extend the existing properties provider with our data tab
+ */
+
+class TokenPropertiesProvider {
+  // Register our properties provider.
+  // Use a lower priority to ensure it is loaded after the basic BPMN properties.
+  constructor(propertiesPanel, injector) {
+    this._injector = injector;
+    this._eventBus = injector.get('eventBus');
+    this.active = false;
+    propertiesPanel.registerProvider(_events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.LOW_PRIORITY, this);
+
+    this._eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.LOW_PRIORITY, (_event, ctx) => {
+      this.active = true;
+      this.dataTypes = ctx.dataTypes;
+    });
+  }
+
+  getGroups(element) {
+    const injector = this._injector;
+    const dataTypes = this.dataTypes;
+    const active = this.active;
+    return groups => {
+      // Data feature works only if our code editor is installed
+      if (active) {
+        const translate = injector.get('translate');
+
+        if ((0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:Process') || (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:Participant') || (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__.is)(element, 'bpmn:SubProcess')) {
+          groups.push({
+            id: 'data-simulation-variables',
+            label: translate('Data simulation'),
+            component: _bpmn_io_properties_panel__WEBPACK_IMPORTED_MODULE_2__.ListGroup,
+            ...(0,_parts_DataProps__WEBPACK_IMPORTED_MODULE_0__.default)({
+              element,
+              injector,
+              dataTypes
+            })
+          });
+        }
+      }
+
+      return groups;
+    };
+  }
+
+}
+TokenPropertiesProvider.$inject = ['propertiesPanel', 'injector'];
+
+/***/ }),
+
+/***/ "./client/propertiesProvider/index.js":
+/*!********************************************!*\
+  !*** ./client/propertiesProvider/index.js ***!
+  \********************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _data__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../data */ "./client/data/index.js");
+/* harmony import */ var _simulation__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../simulation */ "./client/simulation/index.js");
+/* harmony import */ var _TokenPropertiesProvider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./TokenPropertiesProvider */ "./client/propertiesProvider/TokenPropertiesProvider.js");
+
+
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  __depends__: [_data__WEBPACK_IMPORTED_MODULE_0__.default, _simulation__WEBPACK_IMPORTED_MODULE_1__.default],
+  __init__: ['tokenPropertiesProvider'],
+  tokenPropertiesProvider: ['type', _TokenPropertiesProvider__WEBPACK_IMPORTED_MODULE_2__.default]
+});
+
+/***/ }),
+
+/***/ "./client/propertiesProvider/parts/DataElementProps.js":
+/*!*************************************************************!*\
+  !*** ./client/propertiesProvider/parts/DataElementProps.js ***!
+  \*************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ DataElementProps)
+/* harmony export */ });
+/* harmony import */ var _bpmn_io_properties_panel__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @bpmn-io/properties-panel */ "./node_modules/camunda-modeler-plugin-helpers/vendor/@bpmn-io/properties-panel/index.js");
+/* harmony import */ var _bpmn_io_properties_panel__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_bpmn_io_properties_panel__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var bpmn_js_properties_panel__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! bpmn-js-properties-panel */ "./node_modules/camunda-modeler-plugin-helpers/vendor/bpmn-js-properties-panel.js");
+/* harmony import */ var bpmn_js_properties_panel__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(bpmn_js_properties_panel__WEBPACK_IMPORTED_MODULE_1__);
+
+
+function DataElementProps(props) {
+  const {
+    idPrefix,
+    element,
+    dataElement,
+    dataTypes,
+    index
+  } = props;
+  return [{
+    id: idPrefix + 'name',
+    component: Name,
+    idPrefix,
+    element,
+    dataElement,
+    index
+  }, {
+    id: idPrefix + 'type',
+    component: Type,
+    idPrefix,
+    element,
+    dataElement,
+    dataTypes,
+    index
+  }, {
+    id: idPrefix + 'value',
+    component: Value,
+    idPrefix,
+    element,
+    dataElement,
+    index
+  }];
+}
+
+function Name(props) {
+  const {
+    id,
+    element,
+    dataElement,
+    index
+  } = props;
+  const data = (0,bpmn_js_properties_panel__WEBPACK_IMPORTED_MODULE_1__.useService)('dataTokenSimulation');
+  const translate = (0,bpmn_js_properties_panel__WEBPACK_IMPORTED_MODULE_1__.useService)('translate');
+  const debounce = (0,bpmn_js_properties_panel__WEBPACK_IMPORTED_MODULE_1__.useService)('debounceInput');
+
+  const getValue = dEl => {
+    return dEl.name;
+  };
+
+  const setValue = value => {
+    dataElement['name'] = value;
+    data.updateDataElement(element, dataElement, index);
+  };
+
+  return (0,_bpmn_io_properties_panel__WEBPACK_IMPORTED_MODULE_0__.TextFieldEntry)({
+    element: dataElement,
+    id: id,
+    label: translate('Name'),
+    getValue,
+    setValue,
+    debounce
+  });
+}
+
+function Type(props) {
+  const {
+    id,
+    element,
+    dataElement,
+    dataTypes,
+    index
+  } = props;
+  const data = (0,bpmn_js_properties_panel__WEBPACK_IMPORTED_MODULE_1__.useService)('dataTokenSimulation');
+  const translate = (0,bpmn_js_properties_panel__WEBPACK_IMPORTED_MODULE_1__.useService)('translate');
+  const debounce = (0,bpmn_js_properties_panel__WEBPACK_IMPORTED_MODULE_1__.useService)('debounceInput');
+
+  const getValue = dEl => {
+    return dEl.type;
+  };
+
+  const setValue = value => {
+    dataElement['type'] = value;
+    data.updateDataElement(element, dataElement, index);
+  };
+
+  return (0,_bpmn_io_properties_panel__WEBPACK_IMPORTED_MODULE_0__.SelectEntry)({
+    element: dataElement,
+    id: id,
+    label: translate('Type'),
+
+    getOptions() {
+      return dataTypes.map(type => {
+        return {
+          value: type.value,
+          label: type.name
+        };
+      });
+    },
+
+    getValue,
+    setValue,
+    debounce
+  });
+}
+
+function Value(props) {
+  const {
+    id,
+    element,
+    dataElement,
+    index
+  } = props;
+  const data = (0,bpmn_js_properties_panel__WEBPACK_IMPORTED_MODULE_1__.useService)('dataTokenSimulation');
+  const translate = (0,bpmn_js_properties_panel__WEBPACK_IMPORTED_MODULE_1__.useService)('translate');
+  const debounce = (0,bpmn_js_properties_panel__WEBPACK_IMPORTED_MODULE_1__.useService)('debounceInput');
+
+  const getValue = dEl => {
+    return dEl.value;
+  };
+
+  const setValue = value => {
+    dataElement['value'] = value;
+    data.updateDataElement(element, dataElement, index);
+  };
+
+  return (0,_bpmn_io_properties_panel__WEBPACK_IMPORTED_MODULE_0__.TextFieldEntry)({
+    element: dataElement,
+    id: id,
+    label: translate('Value'),
+    getValue,
+    setValue,
+    debounce
+  });
+}
+
+/***/ }),
+
+/***/ "./client/propertiesProvider/parts/DataProps.js":
+/*!******************************************************!*\
+  !*** ./client/propertiesProvider/parts/DataProps.js ***!
+  \******************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ DataProps)
+/* harmony export */ });
+/* harmony import */ var _DataElementProps__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./DataElementProps */ "./client/propertiesProvider/parts/DataElementProps.js");
+/**
+ * Returns the data simulation list of variables
+ * @param element
+ * @param injector
+ * @returns {*[]}
+ */
+
+function DataProps({
+  element,
+  injector,
+  dataTypes
+}) {
+  const data = injector.get('dataTokenSimulation');
+  let dataMap = data.getDataElements(element);
+  const items = [];
+
+  if (dataMap) {
+    let index = 0;
+
+    for (const dataElement of dataMap.values()) {
+      const id = element.id + '-dataElement-' + index;
+      items.push({
+        id,
+        label: dataElement.name || '',
+        // ???
+        entries: (0,_DataElementProps__WEBPACK_IMPORTED_MODULE_0__.default)({
+          idPrefix: id + '-',
+          element,
+          dataElement,
+          dataTypes,
+          index: index
+        }),
+        autoFocusEntry: id + '-name',
+        remove: removeFactory({
+          element,
+          data,
+          index
+        })
+      });
+      index++;
+    }
+  }
+
+  return {
+    items,
+    add: addFactory({
+      items,
+      element,
+      data,
+      dataTypes
+    }),
+    shouldSort: false
+  };
+}
+
+function addFactory({
+  items,
+  element,
+  data,
+  dataTypes
+}) {
+  return function (event) {
+    event.stopPropagation();
+    data.addDataElement(element);
+    const id = element.id + '-dataElement-' + items.length;
+    items.push({
+      id: id,
+      label: '',
+      entries: (0,_DataElementProps__WEBPACK_IMPORTED_MODULE_0__.default)({
+        idPrefix: id + '-',
+        element,
+        dataElement: {},
+        dataTypes,
+        index: items.length
+      }),
+      autoFocusEntry: id + '-name',
+      remove: removeFactory({
+        element,
+        data,
+        index: items.length
+      })
+    });
+  };
+}
+
+function removeFactory({
+  element,
+  data,
+  index
+}) {
+  return function (event) {
+    event.stopPropagation();
+    data.removeDataElement(element, index);
+  };
+}
+
+/***/ }),
+
+/***/ "./client/simulation/behaviors/ActivityBehavior.js":
+/*!*********************************************************!*\
+  !*** ./client/simulation/behaviors/ActivityBehavior.js ***!
+  \*********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ ActivityBehavior)
+/* harmony export */ });
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../events/EventHelper */ "./client/events/EventHelper.js");
+
+/**
+ * Extends default simulator ActivityBehavior to update UI in case data mode is active
+ *
+ * @param simulator
+ * @param eventBus
+ * @param activityBehavior
+ * @constructor
+ */
+
+function ActivityBehavior(simulator, eventBus, activityBehavior) {
+  this._simulator = simulator;
+  this._eventBus = eventBus;
+  this._activityBehavior = activityBehavior;
+  this.active = false;
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
+    this.active = true;
+  });
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_DATA_SIMULATION_EVENT, context => {
+    this.active = context.active;
+  });
+  const elements = ['bpmn:BusinessRuleTask', 'bpmn:CallActivity', 'bpmn:ManualTask', 'bpmn:SendTask', 'bpmn:ServiceTask', 'bpmn:Task', 'bpmn:UserTask'];
+
+  for (const element of elements) {
+    simulator.registerBehavior(element, this);
+  }
+}
+
+ActivityBehavior.prototype.signal = function (context) {
+  if (this.active) {
+    const {
+      element
+    } = context;
+
+    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_NOT_EDITABLE_EVENT, {
+      element
+    });
+  }
+
+  this._activityBehavior.signal(context);
+};
+
+ActivityBehavior.prototype.enter = function (context) {
+  const {
+    element
+  } = context;
+
+  const {
+    wait
+  } = this._simulator.getConfig(element);
+
+  if (wait && this.active) {
+    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_EDITABLE_EVENT, {
+      element
+    });
+  }
+
+  this._activityBehavior.enter(context);
+};
+
+ActivityBehavior.prototype.exit = function (context) {
+  this._activityBehavior.exit(context);
+};
+
+ActivityBehavior.$inject = ['simulator', 'eventBus', 'activityBehavior'];
+
+/***/ }),
+
+/***/ "./client/simulation/behaviors/ExclusiveGatewayBehavior.js":
+/*!*****************************************************************!*\
+  !*** ./client/simulation/behaviors/ExclusiveGatewayBehavior.js ***!
+  \*****************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ ExclusiveGatewayBehavior)
+/* harmony export */ });
+/* harmony import */ var bpmn_js_token_simulation_lib_simulator_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/simulator/util/ModelUtil */ "./node_modules/bpmn-js-token-simulation/lib/simulator/util/ModelUtil.js");
+/* harmony import */ var bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! bpmn-js/lib/util/ModelUtil */ "./node_modules/bpmn-js/lib/util/ModelUtil.js");
+/* harmony import */ var _script_runner_ScriptRunner__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../script-runner/ScriptRunner */ "./client/simulation/script-runner/ScriptRunner.js");
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../events/EventHelper */ "./client/events/EventHelper.js");
+
+
+
+
+/**
+ * Extends default ExclusiveGatewayBehavior. This module allows to execute outgoing expressions and scripts, choosing the
+ * right path on bpmn simulation.
+ *
+ * @param simulator
+ * @param scriptRunner
+ * @param exclusiveGatewayBehavior
+ * @param dataNotifications
+ * @param eventBus
+ * @constructor
+ */
+
+function ExclusiveGatewayBehavior(simulator, scriptRunner, exclusiveGatewayBehavior, dataNotifications, eventBus) {
+  this._simulator = simulator;
+  this._scriptRunner = scriptRunner;
+  this._exclusiveGatewayBehavior = exclusiveGatewayBehavior;
+  this._dataNotifications = dataNotifications;
+  simulator.registerBehavior('bpmn:ExclusiveGateway', this);
+  this.active = false;
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.LOW_PRIORITY, () => {
+    this.active = true;
+  });
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_DATA_SIMULATION_EVENT, context => {
+    this.active = context.active;
+  });
+}
+
+ExclusiveGatewayBehavior.prototype.sortSequenceFlows = function (element, defaultFlow) {
+  /*
+   * Gateway sequence flow order for evaluation
+   *
+   * If set default and more than 2 ways, with a 'cross-condition' evaluation, choose the first following flow-id order
+   * i.e. flow-1 === default
+   * [ flow-2, flow-3, flow-1] (like a switch-case instruction)
+   *
+   */
+  return (0,bpmn_js_token_simulation_lib_simulator_util_ModelUtil__WEBPACK_IMPORTED_MODULE_2__.filterSequenceFlows)(element.outgoing).sort((first, second) => {
+    let firstId = first.id.toUpperCase();
+    let secondId = second.id.toUpperCase();
+
+    if (first.id === defaultFlow) {
+      return 1;
+    } else if (second.id === defaultFlow) {
+      return -1;
+    }
+
+    if (firstId < secondId) {
+      return -1;
+    }
+
+    if (firstId > secondId) {
+      return 1;
+    } // ids must be equal
+
+
+    return 0;
+  });
+};
+
+ExclusiveGatewayBehavior.prototype.enter = function (context) {
+  const {
+    element,
+    scope
+  } = context;
+
+  if (this.active) {
+    let bo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__.getBusinessObject)(element);
+    const defaultFlow = bo.default?.id;
+    const outgoings = this.sortSequenceFlows(element, defaultFlow);
+    const promises = [];
+
+    if (outgoings.length === 1) {
+      // TODO: Needs tests
+      promises.push(Promise.resolve({
+        output: 'true',
+        outgoing: outgoings[0],
+        context
+      }));
+    } else if (outgoings.length > 1) {
+      outgoings.every(async outgoing => {
+        let outgoingBo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_3__.getBusinessObject)(outgoing);
+        const conditionExpression = outgoingBo.conditionExpression;
+
+        if (conditionExpression) {
+          const expression = conditionExpression.body;
+          let code;
+
+          if (conditionExpression?.language === 'groovy') {
+            code = expression;
+          } else if (_script_runner_ScriptRunner__WEBPACK_IMPORTED_MODULE_0__.isExpressionPattern.test(expression)) {
+            // Expression
+            const expressionMatch = expression.match(_script_runner_ScriptRunner__WEBPACK_IMPORTED_MODULE_0__.expressionPattern);
+            code = expressionMatch[1];
+          } else {
+            this._dataNotifications.addElementNotification(outgoing, {
+              type: 'error',
+              icon: 'fa-exclamation-triangle',
+              text: 'Script language is not groovy or is not a valid expression'
+            });
+
+            return false;
+          } // Script
+
+
+          promises.push(this._scriptRunner.runScript(code, scope.data, {
+            outgoing,
+            context
+          }));
+        } else if (outgoing.id === defaultFlow) {
+          promises.push(Promise.resolve({
+            output: 'true',
+            outgoing,
+            context
+          }));
+        } else {
+          this._dataNotifications.addElementNotification(outgoing, {
+            type: 'error',
+            icon: 'fa-exclamation-triangle',
+            text: 'Missing condition'
+          });
+
+          return false;
+        }
+
+        return true;
+      });
+    }
+
+    this.evaluatePromises(element, promises);
+  } else {
+    this._exclusiveGatewayBehavior.enter(context);
+  }
+};
+
+ExclusiveGatewayBehavior.prototype.evaluatePromises = function (element, promises) {
+  Promise.all(promises).then(executions => {
+    executions.every(execution => {
+      if (execution.output && execution.output === 'true') {
+        this._simulator.setConfig(execution.context.element, {
+          activeOutgoing: execution.outgoing
+        });
+
+        this._exclusiveGatewayBehavior.enter(execution.context);
+
+        return false;
+      }
+
+      return true;
+    });
+  }).catch(error => {
+    const truncate = input => input.length > 200 ? `${input.substring(0, 200)}...` : input;
+
+    this._dataNotifications.addElementNotification(element, {
+      type: 'error',
+      icon: 'fa-exclamation-triangle',
+      text: truncate(error.error)
+    });
+  });
+};
+
+ExclusiveGatewayBehavior.prototype.exit = function (context) {
+  return this._exclusiveGatewayBehavior.exit(context);
+};
+
+ExclusiveGatewayBehavior.$inject = ['simulator', 'scriptRunner', 'exclusiveGatewayBehavior', 'dataNotifications', 'eventBus'];
+
+/***/ }),
+
+/***/ "./client/simulation/behaviors/ScriptTaskBehavior.js":
+/*!***********************************************************!*\
+  !*** ./client/simulation/behaviors/ScriptTaskBehavior.js ***!
+  \***********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ ScriptTaskBehavior)
+/* harmony export */ });
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../events/EventHelper */ "./client/events/EventHelper.js");
+/* harmony import */ var bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! bpmn-js/lib/util/ModelUtil */ "./node_modules/bpmn-js/lib/util/ModelUtil.js");
+
+
+/**
+ * New behaviour for ScriptTasks. This module allows to execute the scripts and keeps track of the calculated data
+ * @param simulator
+ * @param eventBus
+ * @param activityBehavior
+ * @param scriptRunner
+ * @param dataTokenSimulation
+ * @param dataNotifications
+ * @constructor
+ */
+
+function ScriptTaskBehavior(simulator, eventBus, activityBehavior, scriptRunner, dataTokenSimulation, dataNotifications) {
+  this._simulator = simulator;
+  this._eventBus = eventBus;
+  this._activityBehavior = activityBehavior;
+  this._scriptRunner = scriptRunner;
+  this._dataTokenSimulation = dataTokenSimulation;
+  this._dataNotifications = dataNotifications;
+  this.active = false;
+  this.dataScopeUpdated = [];
+  simulator.registerBehavior('bpmn:ScriptTask', this);
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
+    this.active = true;
+  });
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_DATA_SIMULATION_EVENT, context => {
+    this.active = context.active;
+  });
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.UPDATED_DATA_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.HIGH_PRIORITY, context => {
+    const {
+      element,
+      participantId,
+      variable
+    } = context;
+
+    if ((0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_1__.is)(element, 'bpmn:ScriptTask')) {
+      this.dataScopeUpdated.push({
+        element,
+        participantId,
+        variable
+      });
+    }
+  });
+}
+
+ScriptTaskBehavior.prototype.signal = async function (context) {
+  const {
+    element,
+    scope
+  } = context;
+
+  if (this.active) {
+    let dataScope = this.dataScopeUpdated.find(dScope => dScope.element.id === element.id); // if data simulation has changed (by user), I need to re-run the script
+
+    if (dataScope) {
+      scope.data.set(dataScope.variable.name, dataScope.variable);
+      await this.enter(context);
+      this.dataScopeUpdated = this.dataScopeUpdated.filter(dScope => dScope.element.id !== element.id);
+    }
+
+    this._activityBehavior.signal(context);
+
+    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_NOT_EDITABLE_EVENT, {
+      element
+    });
+  } else {
+    this._activityBehavior.signal(context);
+  }
+};
+
+ScriptTaskBehavior.prototype.enter = function (context) {
+  const {
+    element,
+    scope
+  } = context;
+
+  const {
+    wait
+  } = this._simulator.getConfig(element);
+
+  if (wait && this.active && !this.dataScopeUpdated.some(dScope => dScope.element.id === element.id)) {
+    this._eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.SET_DATA_EDITABLE_EVENT, {
+      element
+    });
+  }
+
+  if (this.active) {
+    let bo = (0,bpmn_js_lib_util_ModelUtil__WEBPACK_IMPORTED_MODULE_1__.getBusinessObject)(element);
+
+    if (bo.scriptFormat !== 'groovy') {
+      this._dataNotifications.addElementNotification(element, {
+        type: 'error',
+        icon: 'fa-exclamation-triangle',
+        text: 'Script format is not groovy'
+      });
+
+      return;
+    }
+
+    if (!bo.resultVariable) {
+      this._dataNotifications.addElementNotification(element, {
+        type: 'error',
+        icon: 'fa-exclamation-triangle',
+        text: 'Missing result variable for data simulation'
+      });
+
+      return;
+    }
+
+    if (!bo.scriptResultVariableType) {
+      this._dataNotifications.addElementNotification(element, {
+        type: 'error',
+        icon: 'fa-exclamation-triangle',
+        text: 'Missing result variable type for data simulation'
+      });
+
+      return;
+    }
+
+    return this._scriptRunner.runScript(bo.script, scope.data).then(results => {
+      this._dataTokenSimulation.addDataElementSimulation(element, {
+        name: bo.resultVariable,
+        value: results.output,
+        type: bo.scriptResultVariableType
+      });
+
+      this._activityBehavior.enter(context);
+    }).catch(error => {
+      const truncate = input => input.length > 200 ? `${input.substring(0, 200)}...` : input;
+
+      this._dataNotifications.addElementNotification(context.element, {
+        type: 'error',
+        icon: 'fa-exclamation-triangle',
+        text: truncate(error.error)
+      });
+    });
+  } else {
+    this._activityBehavior.enter(context);
+  }
+};
+
+ScriptTaskBehavior.prototype.exit = function (context) {
+  this._activityBehavior.exit(context);
+};
+
+ScriptTaskBehavior.$inject = ['simulator', 'eventBus', 'activityBehavior', 'scriptRunner', 'dataTokenSimulation', 'dataNotifications'];
+
+/***/ }),
+
+/***/ "./client/simulation/behaviors/index.js":
+/*!**********************************************!*\
+  !*** ./client/simulation/behaviors/index.js ***!
+  \**********************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _ActivityBehavior__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./ActivityBehavior */ "./client/simulation/behaviors/ActivityBehavior.js");
+/* harmony import */ var _ScriptTaskBehavior__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./ScriptTaskBehavior */ "./client/simulation/behaviors/ScriptTaskBehavior.js");
+/* harmony import */ var _ExclusiveGatewayBehavior__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./ExclusiveGatewayBehavior */ "./client/simulation/behaviors/ExclusiveGatewayBehavior.js");
+
+
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  __init__: ['dataActivityBehavior', 'dataScriptTaskBehavior', 'dataExclusiveGatewayBehavior'],
+  dataActivityBehavior: ['type', _ActivityBehavior__WEBPACK_IMPORTED_MODULE_0__.default],
+  dataScriptTaskBehavior: ['type', _ScriptTaskBehavior__WEBPACK_IMPORTED_MODULE_1__.default],
+  dataExclusiveGatewayBehavior: ['type', _ExclusiveGatewayBehavior__WEBPACK_IMPORTED_MODULE_2__.default]
+});
+
+/***/ }),
+
+/***/ "./client/simulation/data-notifications/DataNotifications.js":
+/*!*******************************************************************!*\
+  !*** ./client/simulation/data-notifications/DataNotifications.js ***!
+  \*******************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ DataNotifications)
+/* harmony export */ });
+/* harmony import */ var min_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! min-dom */ "./node_modules/min-dom/dist/index.esm.js");
+/* harmony import */ var bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/util/EventHelper */ "./node_modules/bpmn-js-token-simulation/lib/util/EventHelper.js");
+/**
+ * @license ElementNotifications.js
+ * Copyright 2017 bpmn.io
+ * SPDX-License-Identifier: MIT
+ */
+
+
+const OFFSET_TOP = -15;
+const OFFSET_LEFT = 15;
+/**
+ * Implements notification element overlays on data errors
+ * @param overlays
+ * @param eventBus
+ * @constructor
+ */
+
+function DataNotifications(overlays, eventBus) {
+  this._overlays = overlays;
+  eventBus.on([bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.RESET_SIMULATION_EVENT, bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_MODE_EVENT], () => {
+    this.clear();
+  });
+}
+
+DataNotifications.prototype.addElementNotification = function (element, options) {
+  const position = {
+    top: OFFSET_TOP,
+    left: OFFSET_LEFT
+  };
+  const {
+    type,
+    icon,
+    text
+  } = options;
+  const html = (0,min_dom__WEBPACK_IMPORTED_MODULE_1__.domify)(`
+    <div class="data-notification ${type || ''}">
+      ${icon ? `<i class="fa ${icon}"></i>` : ''}
+      <span class="text">${text}</span>
+    </div>
+  `);
+
+  this._overlays.add(element, 'data-notification', {
+    position: position,
+    html: html,
+    show: {
+      minZoom: 0.5
+    }
+  });
+};
+
+DataNotifications.prototype.clear = function () {
+  this._overlays.remove({
+    type: 'data-notification'
+  });
+};
+
+DataNotifications.prototype.removeElementNotification = function (element) {
+  this._overlays.remove({
+    element: element
+  });
+};
+
+DataNotifications.$inject = ['overlays', 'eventBus'];
+
+/***/ }),
+
+/***/ "./client/simulation/data-notifications/index.js":
+/*!*******************************************************!*\
+  !*** ./client/simulation/data-notifications/index.js ***!
+  \*******************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _DataNotifications__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./DataNotifications */ "./client/simulation/data-notifications/DataNotifications.js");
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  __init__: ['dataNotifications'],
+  dataNotifications: ['type', _DataNotifications__WEBPACK_IMPORTED_MODULE_0__.default]
+});
+
+/***/ }),
+
+/***/ "./client/simulation/exclusive-gateway-settings/DataExclusiveGatewaySettings.js":
+/*!**************************************************************************************!*\
+  !*** ./client/simulation/exclusive-gateway-settings/DataExclusiveGatewaySettings.js ***!
+  \**************************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ DataExclusiveGatewaySettings)
+/* harmony export */ });
+/* harmony import */ var bpmn_js_token_simulation_lib_util_ElementHelper__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/util/ElementHelper */ "./node_modules/bpmn-js-token-simulation/lib/util/ElementHelper.js");
+/* harmony import */ var bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! bpmn-js-token-simulation/lib/util/EventHelper */ "./node_modules/bpmn-js-token-simulation/lib/util/EventHelper.js");
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../events/EventHelper */ "./client/events/EventHelper.js");
+
+
+
+const DEFAULT_COLOR = '--token-simulation-grey-darken-30';
+/**
+ * Extends default ExclusiveGatewaySettings on Simulator. This module removes the default elementContextPads if data mode is active.
+ * @param eventBus
+ * @param elementRegistry
+ * @param elementColors
+ * @param simulationStyles
+ * @param exclusiveGatewaySettings
+ * @param contextPads
+ * @constructor
+ */
+
+function DataExclusiveGatewaySettings(eventBus, elementRegistry, elementColors, simulationStyles, exclusiveGatewaySettings, contextPads) {
+  this._elementRegistry = elementRegistry;
+  this._elementColors = elementColors;
+  this._simulationStyles = simulationStyles;
+  this._exclusiveGatewaySettings = exclusiveGatewaySettings;
+  this._contextPads = contextPads;
+  this.dataActive = false;
+  this.active = false;
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.CODE_EDITOR_PLUGIN_PRESENT_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
+    this.dataActive = true;
+    this.active = true;
+  });
+  eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.TOGGLE_MODE_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, context => {
+    if (context.active && this.dataActive) {
+      const exclusiveGateways = this._elementRegistry.filter(element => {
+        return (0,bpmn_js_token_simulation_lib_util_ElementHelper__WEBPACK_IMPORTED_MODULE_2__.is)(element, 'bpmn:ExclusiveGateway');
+      });
+
+      if (context.active && this.active) {
+        this.resetSequenceFlows(exclusiveGateways);
+      }
+    }
+  });
+  eventBus.on(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.TOGGLE_DATA_SIMULATION_EVENT, context => {
+    if (this.dataActive) {
+      this.active = context.active;
+
+      const exclusiveGateways = this._elementRegistry.filter(element => {
+        return (0,bpmn_js_token_simulation_lib_util_ElementHelper__WEBPACK_IMPORTED_MODULE_2__.is)(element, 'bpmn:ExclusiveGateway');
+      });
+
+      if (this.active) {
+        this.resetSequenceFlows(exclusiveGateways);
+      } else {
+        this._exclusiveGatewaySettings.setSequenceFlowsDefault();
+
+        exclusiveGateways.forEach(exclusiveGateway => {
+          // Show context pad
+          for (const handler of contextPads.getHandlers(exclusiveGateway)) {
+            const handlerHash = `${exclusiveGateway.id}------${handler.hash}`;
+
+            contextPads._addOverlay(exclusiveGateway, {
+              handlerHash,
+              html: '<div></div>'
+            });
+
+            contextPads.updateElementContextPads(exclusiveGateway);
+          }
+        });
+      }
+    }
+  });
+  eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.ELEMENT_CHANGED_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, event => {
+    const {
+      element
+    } = event;
+
+    if (this.dataActive && this.active && (0,bpmn_js_token_simulation_lib_util_ElementHelper__WEBPACK_IMPORTED_MODULE_2__.is)(element, 'bpmn:ExclusiveGateway')) {
+      // Hide context pad
+      closeContextPads(this._contextPads, element);
+    }
+  });
+  eventBus.on(bpmn_js_token_simulation_lib_util_EventHelper__WEBPACK_IMPORTED_MODULE_1__.RESET_SIMULATION_EVENT, _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.LOW_PRIORITY, () => {
+    if (this.dataActive && this.active) {
+      const exclusiveGateways = this._elementRegistry.filter(element => {
+        return (0,bpmn_js_token_simulation_lib_util_ElementHelper__WEBPACK_IMPORTED_MODULE_2__.is)(element, 'bpmn:ExclusiveGateway');
+      });
+
+      this.resetSequenceFlows(exclusiveGateways);
+    }
+  });
+}
+
+DataExclusiveGatewaySettings.prototype.resetSequenceFlows = function (exclusiveGateways) {
+  this._exclusiveGatewaySettings.resetSequenceFlows();
+
+  exclusiveGateways.forEach(exclusiveGateway => {
+    // Hide context pad
+    closeContextPads(this._contextPads, exclusiveGateway);
+
+    const stroke = this._simulationStyles.get(DEFAULT_COLOR); // set colors
+
+
+    exclusiveGateway.outgoing.forEach(outgoing => {
+      this._elementColors.set(outgoing, {
+        stroke
+      });
+    });
+  });
+};
+
+function closeContextPads(contextPads, exclusiveGateway) {
+  for (const handler of contextPads.getHandlers(exclusiveGateway)) {
+    const handlerHash = `${exclusiveGateway.id}------${handler.hash}`;
+
+    const existingOverlays = contextPads._getOverlays(handlerHash);
+
+    for (const existingOverlay of existingOverlays) {
+      contextPads._removeOverlay(existingOverlay);
+    }
+  }
+}
+
+DataExclusiveGatewaySettings.$inject = ['eventBus', 'elementRegistry', 'elementColors', 'simulationStyles', 'exclusiveGatewaySettings', 'contextPads'];
+
+/***/ }),
+
+/***/ "./client/simulation/exclusive-gateway-settings/index.js":
+/*!***************************************************************!*\
+  !*** ./client/simulation/exclusive-gateway-settings/index.js ***!
+  \***************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _DataExclusiveGatewaySettings__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./DataExclusiveGatewaySettings */ "./client/simulation/exclusive-gateway-settings/DataExclusiveGatewaySettings.js");
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  __init__: ['dataExclusiveGatewaySettings'],
+  dataExclusiveGatewaySettings: ['type', _DataExclusiveGatewaySettings__WEBPACK_IMPORTED_MODULE_0__.default]
+});
+
+/***/ }),
+
+/***/ "./client/simulation/index.js":
+/*!************************************!*\
+  !*** ./client/simulation/index.js ***!
+  \************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _data_notifications__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./data-notifications */ "./client/simulation/data-notifications/index.js");
+/* harmony import */ var _behaviors__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./behaviors */ "./client/simulation/behaviors/index.js");
+/* harmony import */ var _script_runner__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./script-runner */ "./client/simulation/script-runner/index.js");
+/* harmony import */ var _exclusive_gateway_settings__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./exclusive-gateway-settings */ "./client/simulation/exclusive-gateway-settings/index.js");
+
+
+
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  __depends__: [_behaviors__WEBPACK_IMPORTED_MODULE_1__.default, _script_runner__WEBPACK_IMPORTED_MODULE_2__.default, _data_notifications__WEBPACK_IMPORTED_MODULE_0__.default, _exclusive_gateway_settings__WEBPACK_IMPORTED_MODULE_3__.default]
+});
+
+/***/ }),
+
+/***/ "./client/simulation/script-runner/ScriptRunner.js":
+/*!*********************************************************!*\
+  !*** ./client/simulation/script-runner/ScriptRunner.js ***!
+  \*********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "isExpressionPattern": () => (/* binding */ isExpressionPattern),
+/* harmony export */   "expressionPattern": () => (/* binding */ expressionPattern),
+/* harmony export */   "default": () => (/* binding */ ScriptRunner)
+/* harmony export */ });
+/* harmony import */ var _events_EventHelper__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../events/EventHelper */ "./client/events/EventHelper.js");
+
+const isExpressionPattern = /^\${(.+?)}$/;
+const expressionPattern = /\${(.+?)}/;
+function ScriptRunner(eventBus) {
+  this._eventBus = eventBus;
+}
+/**
+ * Calls the {@link RUN_CODE_EVALUATION_EVENT} to instruct the Code Editor to run the script with additional data.
+ * Returns a promise with the result.
+ * @param code
+ * @param data
+ * @param additionalData
+ * @returns {Promise<*>}
+ */
+
+ScriptRunner.prototype.runScript = async function (code, data, additionalData) {
+  const eventBus = this._eventBus;
+
+  const fireScriptRun = async (c, d) => {
+    return eventBus.fire(_events_EventHelper__WEBPACK_IMPORTED_MODULE_0__.RUN_CODE_EVALUATION_EVENT, c, Array.from(d.values()));
+  };
+
+  return fireScriptRun(code, data).then(results => {
+    let newResults = { ...results,
+      ...additionalData
+    };
+
+    if (newResults.error) {
+      return Promise.reject(newResults);
+    } else {
+      return Promise.resolve(newResults);
+    }
+  });
+};
+
+ScriptRunner.$inject = ['eventBus'];
+
+/***/ }),
+
+/***/ "./client/simulation/script-runner/index.js":
+/*!**************************************************!*\
+  !*** ./client/simulation/script-runner/index.js ***!
+  \**************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _ScriptRunner__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./ScriptRunner */ "./client/simulation/script-runner/ScriptRunner.js");
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  __init__: ['scriptRunner'],
+  scriptRunner: ['type', _ScriptRunner__WEBPACK_IMPORTED_MODULE_0__.default]
+});
 
 /***/ }),
 
@@ -7917,6 +9830,28 @@ function getDi(element) {
 
 /***/ }),
 
+/***/ "./node_modules/camunda-modeler-plugin-helpers/helper.js":
+/*!***************************************************************!*\
+  !*** ./node_modules/camunda-modeler-plugin-helpers/helper.js ***!
+  \***************************************************************/
+/***/ ((module) => {
+
+module.exports.returnOrThrow = function(getter, minimalModelerVersion) {
+  let result;
+  try {
+    result = getter();
+  } catch (error) {}
+
+  if (!result) {
+    throw new Error(`Not compatible with Camunda Modeler < ${minimalModelerVersion}`);
+  }
+
+  return result;
+}
+
+
+/***/ }),
+
 /***/ "./node_modules/camunda-modeler-plugin-helpers/index.js":
 /*!**************************************************************!*\
   !*** ./node_modules/camunda-modeler-plugin-helpers/index.js ***!
@@ -8189,6 +10124,32 @@ function getModelerDirectory() {
 function getPluginsDirectory() {
   return window.getPluginsDirectory();
 }
+
+/***/ }),
+
+/***/ "./node_modules/camunda-modeler-plugin-helpers/vendor/@bpmn-io/properties-panel/index.js":
+/*!***********************************************************************************************!*\
+  !*** ./node_modules/camunda-modeler-plugin-helpers/vendor/@bpmn-io/properties-panel/index.js ***!
+  \***********************************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const { returnOrThrow } = __webpack_require__(/*! ../../../helper */ "./node_modules/camunda-modeler-plugin-helpers/helper.js");
+
+module.exports = returnOrThrow(() => window.vendor.propertiesPanel.common, '5.0.0');
+
+
+/***/ }),
+
+/***/ "./node_modules/camunda-modeler-plugin-helpers/vendor/bpmn-js-properties-panel.js":
+/*!****************************************************************************************!*\
+  !*** ./node_modules/camunda-modeler-plugin-helpers/vendor/bpmn-js-properties-panel.js ***!
+  \****************************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+const { returnOrThrow } = __webpack_require__(/*! ../helper */ "./node_modules/camunda-modeler-plugin-helpers/helper.js");
+
+module.exports = returnOrThrow(() => window.vendor.propertiesPanel.bpmn, '5.0.0');
+
 
 /***/ }),
 
@@ -11329,21 +13290,20 @@ var __webpack_exports__ = {};
   \**************************/
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var camunda_modeler_plugin_helpers__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! camunda-modeler-plugin-helpers */ "./node_modules/camunda-modeler-plugin-helpers/index.js");
-/* harmony import */ var bpmn_js_token_simulation__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! bpmn-js-token-simulation */ "./node_modules/bpmn-js-token-simulation/lib/modeler.js");
+/* harmony import */ var bpmn_js_token_simulation__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! bpmn-js-token-simulation */ "./node_modules/bpmn-js-token-simulation/lib/modeler.js");
 /* harmony import */ var _HideModelerElements__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./HideModelerElements */ "./client/HideModelerElements.js");
-
+/* harmony import */ var _propertiesProvider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./propertiesProvider */ "./client/propertiesProvider/index.js");
 
 
 
 
 const TokenSimulationPluginModule = {
-  __init__: [ 'hideModelerElements' ],
-  hideModelerElements: [ 'type', _HideModelerElements__WEBPACK_IMPORTED_MODULE_1__.default ]
+  __depends__: [_propertiesProvider__WEBPACK_IMPORTED_MODULE_2__.default],
+  __init__: ['hideModelerElements'],
+  hideModelerElements: ['type', _HideModelerElements__WEBPACK_IMPORTED_MODULE_1__.default]
 };
-
-(0,camunda_modeler_plugin_helpers__WEBPACK_IMPORTED_MODULE_0__.registerBpmnJSPlugin)(bpmn_js_token_simulation__WEBPACK_IMPORTED_MODULE_2__.default);
+(0,camunda_modeler_plugin_helpers__WEBPACK_IMPORTED_MODULE_0__.registerBpmnJSPlugin)(bpmn_js_token_simulation__WEBPACK_IMPORTED_MODULE_3__.default);
 (0,camunda_modeler_plugin_helpers__WEBPACK_IMPORTED_MODULE_0__.registerBpmnJSPlugin)(TokenSimulationPluginModule);
-
 })();
 
 /******/ })()

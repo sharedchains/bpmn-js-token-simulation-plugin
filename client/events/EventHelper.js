@@ -20,6 +20,7 @@ const eventTypes = {
 
 };
 
+const LOWEST_PRIORITY = 199;
 const LOW_PRIORITY = 499;
 const DEFAULT_PRIORITY = 1000;
 const MID_HIGH_PRIORITY = 6000;
@@ -28,6 +29,7 @@ const HIGH_PRIORITY = 10001;
 export default eventTypes;
 
 export {
+  LOWEST_PRIORITY,
   LOW_PRIORITY,
   DEFAULT_PRIORITY,
   MID_HIGH_PRIORITY,

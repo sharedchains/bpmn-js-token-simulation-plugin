@@ -1,5 +1,6 @@
 const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
+const CamundaModelerWebpackPlugin = require('camunda-modeler-webpack-plugin');
 
 module.exports = {
   mode: 'development',
@@ -9,6 +10,7 @@ module.exports = {
     filename: 'client.bundle.js'
   },
   plugins: [
+    new CamundaModelerWebpackPlugin(),
     new CopyPlugin({
       patterns: [
         {
