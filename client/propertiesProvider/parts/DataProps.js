@@ -9,6 +9,7 @@ import DataElementProps from './DataElementProps';
 export default function DataProps({ element, injector, dataTypes }) {
 
   const data = injector.get('dataTokenSimulation');
+  const eventBus = injector.get('eventBus');
   let dataMap = data.getDataElements(element);
   const items = [];
   if (dataMap) {
@@ -28,45 +29,33 @@ export default function DataProps({ element, injector, dataTypes }) {
           index: index
         }),
         autoFocusEntry: id + '-name',
-        remove: removeFactory({ element, data, index })
+        remove: removeFactory({ element, data, index, eventBus })
       });
       index++;
     }
   }
+
   return {
     items,
-    add: addFactory({ items, element, data, dataTypes }),
+    add: addFactory({ element, data, eventBus }),
     shouldSort: false
   };
 }
 
-function addFactory({ items, element, data, dataTypes }) {
+function addFactory({ element, data, eventBus }) {
   return function(event) {
     event.stopPropagation();
 
     data.addDataElement(element);
-    const id = element.id + '-dataElement-' + items.length;
-
-    items.push({
-      id: id,
-      label: '',
-      entries: DataElementProps({
-        idPrefix: id + '-',
-        element,
-        dataElement: {},
-        dataTypes,
-        index: items.length
-      }),
-      autoFocusEntry: id + '-name',
-      remove: removeFactory({ element, data, index: items.length })
-    })
+    eventBus.fire('propertiesPanel.providersChanged');
   };
 }
 
-function removeFactory({ element, data, index }) {
+function removeFactory({ element, data, index, eventBus }) {
   return function(event) {
     event.stopPropagation();
 
     data.removeDataElement(element, index);
+    eventBus.fire('propertiesPanel.providersChanged');
   };
 }

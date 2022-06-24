@@ -951,7 +951,7 @@ function DataElementProps(props) {
 
 function Name(props) {
   const {
-    id,
+    idPrefix,
     element,
     dataElement,
     index
@@ -971,7 +971,7 @@ function Name(props) {
 
   return (0,_bpmn_io_properties_panel__WEBPACK_IMPORTED_MODULE_0__.TextFieldEntry)({
     element: dataElement,
-    id: id,
+    id: idPrefix + 'name',
     label: translate('Name'),
     getValue,
     setValue,
@@ -981,7 +981,7 @@ function Name(props) {
 
 function Type(props) {
   const {
-    id,
+    idPrefix,
     element,
     dataElement,
     dataTypes,
@@ -1002,7 +1002,7 @@ function Type(props) {
 
   return (0,_bpmn_io_properties_panel__WEBPACK_IMPORTED_MODULE_0__.SelectEntry)({
     element: dataElement,
-    id: id,
+    id: idPrefix + 'type',
     label: translate('Type'),
 
     getOptions() {
@@ -1022,7 +1022,7 @@ function Type(props) {
 
 function Value(props) {
   const {
-    id,
+    idPrefix,
     element,
     dataElement,
     index
@@ -1042,7 +1042,7 @@ function Value(props) {
 
   return (0,_bpmn_io_properties_panel__WEBPACK_IMPORTED_MODULE_0__.TextFieldEntry)({
     element: dataElement,
-    id: id,
+    id: idPrefix + 'value',
     label: translate('Value'),
     getValue,
     setValue,
@@ -1077,6 +1077,7 @@ function DataProps({
   dataTypes
 }) {
   const data = injector.get('dataTokenSimulation');
+  const eventBus = injector.get('eventBus');
   let dataMap = data.getDataElements(element);
   const items = [];
 
@@ -1100,7 +1101,8 @@ function DataProps({
         remove: removeFactory({
           element,
           data,
-          index
+          index,
+          eventBus
         })
       });
       index++;
@@ -1110,53 +1112,36 @@ function DataProps({
   return {
     items,
     add: addFactory({
-      items,
       element,
       data,
-      dataTypes
+      eventBus
     }),
     shouldSort: false
   };
 }
 
 function addFactory({
-  items,
   element,
   data,
-  dataTypes
+  eventBus
 }) {
   return function (event) {
     event.stopPropagation();
     data.addDataElement(element);
-    const id = element.id + '-dataElement-' + items.length;
-    items.push({
-      id: id,
-      label: '',
-      entries: (0,_DataElementProps__WEBPACK_IMPORTED_MODULE_0__.default)({
-        idPrefix: id + '-',
-        element,
-        dataElement: {},
-        dataTypes,
-        index: items.length
-      }),
-      autoFocusEntry: id + '-name',
-      remove: removeFactory({
-        element,
-        data,
-        index: items.length
-      })
-    });
+    eventBus.fire('propertiesPanel.providersChanged');
   };
 }
 
 function removeFactory({
   element,
   data,
-  index
+  index,
+  eventBus
 }) {
   return function (event) {
     event.stopPropagation();
     data.removeDataElement(element, index);
+    eventBus.fire('propertiesPanel.providersChanged');
   };
 }
 

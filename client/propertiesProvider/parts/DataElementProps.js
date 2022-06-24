@@ -40,7 +40,7 @@ export default function DataElementProps(props) {
 }
 
 function Name(props) {
-  const { id, element, dataElement, index } = props;
+  const { idPrefix, element, dataElement, index } = props;
 
   const data = useService('dataTokenSimulation');
   const translate = useService('translate');
@@ -59,7 +59,7 @@ function Name(props) {
 
   return TextFieldEntry({
     element: dataElement,
-    id: id,
+    id: idPrefix + 'name',
     label: translate('Name'),
     getValue,
     setValue,
@@ -68,7 +68,7 @@ function Name(props) {
 }
 
 function Type(props) {
-  const { id, element, dataElement, dataTypes, index } = props;
+  const { idPrefix, element, dataElement, dataTypes, index } = props;
 
   const data = useService('dataTokenSimulation');
   const translate = useService('translate');
@@ -86,7 +86,7 @@ function Type(props) {
 
   return SelectEntry({
     element: dataElement,
-    id: id,
+    id: idPrefix + 'type',
     label: translate('Type'),
     getOptions() {
       return dataTypes.map(type => {
@@ -103,7 +103,7 @@ function Type(props) {
 }
 
 function Value(props) {
-  const { id, element, dataElement, index } = props;
+  const { idPrefix, element, dataElement, index } = props;
 
   const data = useService('dataTokenSimulation');
   const translate = useService('translate');
@@ -121,7 +121,7 @@ function Value(props) {
 
   return TextFieldEntry({
     element: dataElement,
-    id: id,
+    id: idPrefix + 'value',
     label: translate('Value'),
     getValue,
     setValue,
